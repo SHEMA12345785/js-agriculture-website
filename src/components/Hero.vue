@@ -1,5 +1,10 @@
 <template>
   <section id="top" class="hero">
+    <div class="hero-media" aria-hidden="true">
+      <span class="hero-bg hero-bg-one"></span>
+      <span class="hero-bg hero-bg-two"></span>
+    </div>
+    <div class="hero-overlay" aria-hidden="true"></div>
     <div class="container hero-inner">
       <div class="hero-copy">
         <p class="eyebrow-tag">
@@ -22,15 +27,21 @@
         </div>
         <div class="hero-stats">
           <div>
-            <strong>8</strong>
+            <strong class="stat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false"><path d="M12 21V8M12 8c-2.8-3.3-6.1-3.2-8-3 0 4.7 2.8 7.2 8 7M12 11c2.8-3.3 6.1-3.2 8-3 0 4.7-2.8 7.2-8 7M7 21h10M8 17h8" /></svg>
+            </strong>
             <span>core services, farm to export</span>
           </div>
           <div>
-            <strong>2</strong>
+            <strong class="stat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false"><path d="M6 3h12v18H6zM9 6h6M9 10h6M9 14h3M9 18h6" /></svg>
+            </strong>
             <span>direct phone lines for orders</span>
           </div>
           <div>
-            <strong>1</strong>
+            <strong class="stat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false"><path d="M12 21s7-6.1 7-12A7 7 0 0 0 5 9c0 5.9 7 12 7 12Z" /><circle cx="12" cy="9" r="2.2" /><path d="M8 17h8" /></svg>
+            </strong>
             <span>home base in Eastern Rwanda</span>
           </div>
         </div>
@@ -51,23 +62,56 @@
   padding: 34px 0 38px;
 }
 
-.hero::before {
-  content: '';
+.hero-media {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background-image: url('/Hero wallpaper.png');
-  background-position: center center;
-  background-size: cover;
-  opacity: 1;
 }
 
-.hero::after {
-  content: '';
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  background-position: center center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.hero-bg-one {
+  background-image: url('/Hero wallpaper scand slide.jpg');
+  animation: heroFadeA 20s ease-in-out infinite;
+}
+
+.hero-bg-two {
+  background-image: url('/Hero wallpaper.png');
+  animation: heroFadeB 20s ease-in-out infinite;
+}
+
+.hero-overlay {
   position: absolute;
   inset: 0;
   z-index: 0;
   background: linear-gradient(90deg, rgba(0, 0, 0, 0.72) 0%, rgba(0, 0, 0, 0.42) 54%, rgba(0, 0, 0, 0.18) 100%);
+}
+
+@keyframes heroFadeA {
+  0%, 45% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0;
+  }
+}
+
+@keyframes heroFadeB {
+  0%, 45% {
+    opacity: 0;
+  }
+  50%, 95% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 .hero-inner {
@@ -174,9 +218,24 @@ h1 {
 .hero-stats strong {
   display: block;
   font-family: var(--font-display);
-  font-size: 1.8rem;
   color: var(--chili);
   line-height: 1;
+}
+
+.hero-stats .stat-icon {
+  width: 30px;
+  height: 30px;
+  color: #ffd447;
+}
+
+.stat-icon svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
 }
 
 .hero-stats > div {

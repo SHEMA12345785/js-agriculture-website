@@ -6,12 +6,61 @@ const email = ref('')
 const phone = ref('')
 const message = ref('')
 const sent = ref(false)
+const sending = ref(false)
+const error = ref('')
 
-function submit() {
-  const subject = encodeURIComponent(`Website enquiry from ${name.value}`)
-  const body = encodeURIComponent(`Name: ${name.value}\nEmail: ${email.value}\nPhone: ${phone.value || 'Not provided'}\n\n${message.value}`)
-  window.location.href = `mailto:j.sagricultureimportexportco@gmail.com?subject=${subject}&body=${body}`
-  sent.value = true
+async function submit() {
+  sending.value = true
+  error.value = ''
+
+  try {
+    const response = await fetch('https://formsubmit.co/ajax/jsagricultureltd.co@gmail.com', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: name.value,
+        email: email.value,
+        phone: phone.value || 'Not provided',
+        message: message.value,
+        _subject: `Website enquiry from ${name.value}`,
+        _autoresponse: `Thank you for contacting J.S Agriculture Import and Export Company Ltd.
+
+      We have received your enquiry and our team will review it carefully. Please wait for our reply by phone or email. We aim to respond as soon as possible during business hours.
+
+      Company: J.S Agriculture Import and Export Company Ltd
+      Email: jsagricultureltd.co@gmail.com
+      Phone: 0791 945 206 / 0795 398 553
+      WhatsApp: https://wa.me/250791945206
+      Location: Kayonza / Nyamirama, Rwanda
+      Website: https://www.jsagriculturaltd.com
+
+      Thank you for your interest in partnering with us.
+
+      J.S Agriculture Team`,
+        _template: 'table',
+        _captcha: 'false',
+      }),
+    })
+
+    if (!response.ok) throw new Error('The message could not be sent.')
+    sent.value = true
+  } catch {
+    error.value = 'We could not send your message. Please email us directly at jsagricultureltd.co@gmail.com.'
+  } finally {
+    sending.value = false
+  }
+}
+
+function startNewMessage() {
+  sent.value = false
+  error.value = ''
+  name.value = ''
+  email.value = ''
+  phone.value = ''
+  message.value = ''
 }
 </script>
 
@@ -38,7 +87,7 @@ function submit() {
           </li>
           <li>
             <span class="label">Email</span>
-            <a href="mailto:j.sagricultureimportexportco@gmail.com">j.sagricultureimportexportco@gmail.com</a>
+            <a href="mailto:jsagricultureltd.co@gmail.com">jsagricultureltd.co@gmail.com</a>
           </li>
           <li>
             <span class="label">Location</span>
@@ -68,13 +117,18 @@ function submit() {
           Message
           <textarea v-model="message" name="message" rows="5" required placeholder="Tell us about your farm, order or partnership"></textarea>
         </label>
-        <button class="btn btn-primary" type="submit">Send message</button>
-        <p class="form-note">This opens your email app with the enquiry details ready to send.</p>
+        <button class="btn btn-primary" type="submit" :disabled="sending">
+          {{ sending ? 'Sending...' : 'Send message' }}
+        </button>
+        <p v-if="error" class="form-error" role="alert">{{ error }}</p>
+        <p v-else class="form-note">Your message will be sent securely to our team.</p>
       </form>
 
       <div class="contact-confirm" v-else>
-        <h3>Thanks, {{ name }}.</h3>
-        <p>We've noted your message and will follow up by phone or email shortly.</p>
+        <span class="reply-label">Automatic reply</span>
+        <h3>Thanks for reaching out, {{ name }}.</h3>
+        <p>Your enquiry is ready in your email app. Please press send there, and our team will reply by phone or email.</p>
+        <button class="btn btn-secondary" type="button" @click="startNewMessage">Send another message</button>
       </div>
     </div>
   </section>
@@ -182,6 +236,17 @@ h2 {
   margin: -4px 0 0;
 }
 
+.form-error {
+  margin: -4px 0 0;
+  color: var(--chili-deep);
+  font-size: 0.85rem;
+}
+
+.contact-form button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
 .contact-form input,
 .contact-form textarea {
   font-family: var(--font-body);
@@ -228,6 +293,28 @@ h2 {
 
 .contact-confirm p {
   color: var(--ink-soft);
+}
+
+.reply-label {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--leaf);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.btn-secondary {
+  margin-top: 22px;
+  border-color: var(--forest-deep);
+  background: transparent;
+  color: var(--forest-deep);
+}
+
+.btn-secondary:hover {
+  background: var(--forest-deep);
+  color: #fff9f0;
 }
 
 @media (max-width: 820px) {

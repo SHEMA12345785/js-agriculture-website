@@ -8,7 +8,7 @@ const year = new Date().getFullYear()
       <div>
         <strong>J.S Agriculture Import and Export Company Ltd</strong>
         <p>Better Farmers &rarr; Better Products &rarr; A Brighter Future</p>
-        <a class="footer-email" href="mailto:j.sagricultureimportexportco@gmail.com">j.sagricultureimportexportco@gmail.com</a>
+        <a class="footer-email" href="mailto:jsagricultureltd.co@gmail.com">jsagricultureltd.co@gmail.com</a>
       </div>
       <div class="footer-links">
         <a href="#about">About</a>
