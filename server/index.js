@@ -104,32 +104,44 @@ app.post('/api/admin/forgot-password', async (req, res) => {
 
   const resetToken = jwt.sign({ email: adminEmail, purpose: 'reset-password' }, jwtSecret, { expiresIn: '30m' })
   const resetUrl = `${clientUrl}/?reset=${encodeURIComponent(resetToken)}&type=recovery`
+  const smtpConfigured = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)
+
+  if (!smtpConfigured) {
+    console.log('Password reset requested for', adminEmail)
+    console.log('Reset link (email not configured):', resetUrl)
+    return res.status(503).json({
+      message: 'Email delivery is not configured on this server. The reset link has been logged in the backend console.',
+    })
+  }
 
   try {
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: Number(process.env.SMTP_PORT || 587),
       secure: false,
-      auth: process.env.SMTP_USER && process.env.SMTP_PASS ? {
+      auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
-      } : undefined,
+      },
     })
 
     await transporter.sendMail({
-      from: process.env.SMTP_FROM || 'no-reply@example.com',
+      from: process.env.SMTP_FROM || adminEmail,
       to: adminEmail,
       subject: 'Password reset for JS Agriculture admin',
       text: `Reset your password here: ${resetUrl}`,
       html: `<p>Reset your password here:</p><p><a href="${resetUrl}">${resetUrl}</a></p>`,
     })
+
+    return res.json({
+      message: 'If this email is registered, a reset link has been sent.',
+    })
   } catch (error) {
     console.error('Email send failed', error)
+    return res.status(500).json({
+      message: 'The reset email could not be sent. Please check the SMTP configuration.',
+    })
   }
-
-  return res.json({
-    message: 'If this email is registered, a reset link has been sent.',
-  })
 })
 
 app.post('/api/admin/reset-password', (req, res) => {
