@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import bcrypt from 'bcryptjs'
@@ -109,8 +110,10 @@ app.post('/api/admin/forgot-password', async (req, res) => {
   if (!smtpConfigured) {
     console.log('Password reset requested for', adminEmail)
     console.log('Reset link (email not configured):', resetUrl)
-    return res.status(503).json({
-      message: 'Email delivery is not configured on this server. The reset link has been logged in the backend console.',
+    return res.json({
+      message: 'Email delivery is not configured on this server. Use the reset link below instead.',
+      resetUrl,
+      smtpConfigured: false,
     })
   }
 
@@ -135,6 +138,8 @@ app.post('/api/admin/forgot-password', async (req, res) => {
 
     return res.json({
       message: 'If this email is registered, a reset link has been sent.',
+      resetUrl,
+      smtpConfigured: true,
     })
   } catch (error) {
     console.error('Email send failed', error)

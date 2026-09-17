@@ -24,6 +24,7 @@ const authForm = ref({ email: '', password: '' })
 const authError = ref('')
 const passwordResetEmail = ref('')
 const passwordResetMessage = ref('')
+const passwordResetLink = ref('')
 const newPassword = ref('')
 const showForgotPassword = ref(false)
 const showRecoveryForm = ref(false)
@@ -225,6 +226,7 @@ async function requestPasswordReset() {
 
   isLoading.value = true
   passwordResetMessage.value = ''
+  passwordResetLink.value = ''
 
   try {
     const response = await requestJson(`${apiBase}/api/admin/forgot-password`, {
@@ -236,7 +238,8 @@ async function requestPasswordReset() {
     })
 
     passwordResetMessage.value = response?.message || 'A password reset email has been sent.'
-    showForgotPassword.value = false
+    passwordResetLink.value = response?.resetUrl || ''
+    showForgotPassword.value = Boolean(response?.resetUrl) || false
     passwordResetEmail.value = ''
   } catch (error) {
     passwordResetMessage.value = error.message || 'Unable to send reset email.'
@@ -493,12 +496,15 @@ onUnmounted(() => {
               <button class="btn btn-primary" type="button" @click="requestPasswordReset" :disabled="isLoading">
                 {{ isLoading ? 'Sending...' : 'Send reset link' }}
               </button>
-              <button class="btn btn-ghost" type="button" @click="showForgotPassword = false">
+              <button class="btn btn-ghost" type="button" @click="showForgotPassword = false; passwordResetMessage = ''; passwordResetLink = ''">
                 Cancel
               </button>
             </div>
 
             <p v-if="passwordResetMessage" class="notice">{{ passwordResetMessage }}</p>
+            <p v-if="passwordResetLink" class="notice reset-link-box">
+              <a :href="passwordResetLink" target="_blank" rel="noreferrer">Open reset link</a>
+            </p>
           </div>
 
           <form v-if="showRecoveryForm" class="auth-form" @submit.prevent="updatePasswordAfterRecovery">

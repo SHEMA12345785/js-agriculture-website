@@ -40,6 +40,22 @@ git push -u origin main
 - `src/components/Contact.vue` — phone, email, location, form
 - `src/style.css` — colors and fonts (design tokens at the top)
 
+## Admin email setup
+
+To enable the password reset email flow, fill in the SMTP values in `.env` before starting the backend.
+
+Example for Gmail:
+
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-16-character-app-password
+SMTP_FROM=your-email@gmail.com
+```
+
+Use an app password for Gmail. Without SMTP values, the app falls back to a generated reset link shown in the backend console and in the UI.
+
 ## Notes
 
 - The contact form opens a pre-filled email in the visitor's email client. For production, connect it to a backend or form service and persist enquiries.
