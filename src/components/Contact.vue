@@ -66,7 +66,7 @@ function startNewMessage() {
           </li>
           <li>
             <span class="label">WhatsApp</span>
-            <a href="https://wa.me/250791945206" target="_blank" rel="noreferrer">Chat with our team</a>
+            <a href="https://wa.me/250795398553" target="_blank" rel="noreferrer">Chat with our team</a>
           </li>
           <li>
             <span class="label">Email</span>
@@ -74,13 +74,22 @@ function startNewMessage() {
           </li>
           <li>
             <span class="label">Location</span>
-            <a href="https://www.google.com/maps/search/?api=1&query=Kayonza%2C%20Rwanda" target="_blank" rel="noreferrer">Kayonza / Nyamirama, Rwanda</a>
+            <a href="https://maps.app.goo.gl/CGA9MP4jTpU4HhGEA" target="_blank" rel="noreferrer">Kayonza / Nyamirama, Rwanda</a>
           </li>
           <li>
             <span class="label">Website</span>
             <a href="https://www.jsagriculturaltd.com" target="_blank" rel="noreferrer">www.jsagriculturaltd.com</a>
           </li>
         </ul>
+
+        <div class="location-map">
+          <iframe
+            src="https://www.google.com/maps?q=-1.9670162,30.546278&z=17&output=embed"
+            title="J.S Agriculture location map"
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"
+          ></iframe>
+        </div>
       </div>
 
       <form class="contact-form" @submit.prevent="submit" v-if="!sent">
@@ -180,6 +189,22 @@ h2 {
 
 .details a:hover {
   color: var(--chili);
+}
+
+.location-map {
+  margin-top: 30px;
+  aspect-ratio: 16 / 9;
+  min-height: 220px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+}
+
+.location-map iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
 }
 
 .label {

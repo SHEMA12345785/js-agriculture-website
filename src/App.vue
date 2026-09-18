@@ -22,7 +22,7 @@ import Footer from './components/Footer.vue'
     <Process />
     <Contact />
   </main>
-  <a class="whatsapp-float" href="https://wa.me/250791945206" target="_blank" rel="noreferrer" aria-label="Chat with J.S Agriculture on WhatsApp">
+  <a class="whatsapp-float" href="https://wa.me/250795398553" target="_blank" rel="noreferrer" aria-label="Chat with J.S Agriculture on WhatsApp">
     <span aria-hidden="true">WA</span>
     <span>WhatsApp us</span>
   </a>
