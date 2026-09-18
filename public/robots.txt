@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://www.jsagriculturaltd.com/sitemap.xml
+Sitemap: https://www.jsagricultureltd.com/sitemap.xml

@@ -11,6 +11,8 @@ npm run dev
 
 Open the printed `http://localhost:5173/` link.
 
+The Vite development proxy forwards `/api` requests to the backend on port 4000, so local login and contact form requests do not depend on a device-specific `localhost` URL.
+
 ## Build for production
 
 ```bash
@@ -18,6 +20,16 @@ npm run build
 ```
 
 Output goes to `dist/`. Deploy that folder to any static host (Netlify, Vercel, GitHub Pages, etc).
+
+## Production frontend and admin login
+
+Admin login is handled by the backend with JWT, so it is available from every device when the frontend can reach the hosted backend. Before building for production, set `VITE_API_URL` to the public backend URL when frontend and backend are hosted separately:
+
+```env
+VITE_API_URL=https://api.your-domain.com
+```
+
+If both are served from the same domain, leave `VITE_API_URL` empty and the frontend will use same-origin `/api` requests. Do not use `http://localhost:4000` in a production build: on another device, that address points to the other device itself.
 
 ## Push to GitHub
 

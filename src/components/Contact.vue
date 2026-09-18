@@ -78,7 +78,7 @@ function startNewMessage() {
           </li>
           <li>
             <span class="label">Website</span>
-            <a href="https://www.jsagriculturaltd.com" target="_blank" rel="noreferrer">www.jsagriculturaltd.com</a>
+            <a href="https://www.jsagricultureltd.com" target="_blank" rel="noreferrer">www.jsagricultureltd.com</a>
           </li>
         </ul>
 

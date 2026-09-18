@@ -9,7 +9,7 @@
       <div class="hero-copy">
         <p class="eyebrow-tag">
           <span class="dot" aria-hidden="true"></span>
-          Kayonza / Nyamirama, Rwanda <span class="hero-site">www.jsagriculturaltd.com</span>
+          Kayonza / Nyamirama, Rwanda <span class="hero-site">www.jsagricultureltd.com</span>
         </p>
         <h1>
           Better farmers.<br />

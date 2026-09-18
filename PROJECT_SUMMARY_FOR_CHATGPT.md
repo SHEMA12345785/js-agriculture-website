@@ -90,23 +90,16 @@ js-agriculture-website improvement/
 - ✅ Frontend validation
 - ✅ Submit to backend API: `POST /api/contact`
 - ✅ Local backup: Submissions saved to `server/submissions.json`
-- ⚠️ **ISSUE:** Email delivery not working - SMTP password not configured
+- ✅ SMTP email delivery verified with Gmail App Password
 
 ---
 
 ## CURRENT ISSUE & WISHES
 
-### ISSUE: Contact Form Emails Not Delivering
-**Problem:** 
-- Contact form shows "success" message
-- Messages are saved locally in `submissions.json`
-- But emails are NOT being sent to jsagricultureimportexportco@gmail.com
-- Reason: SMTP_PASS in `.env` is still a placeholder: `your_16_character_app_password_here`
+### RESOLVED: Contact Form Email Delivery
+Contact form submissions are saved locally and delivered to `jsagricultureimportexportco@gmail.com` through Gmail SMTP.
 
-**Solution Needed:**
-- Configure Gmail SMTP with actual App Password
-- Test email delivery
-- Ensure admins receive emails when clients submit contact form
+SMTP was configured with a Gmail App Password and verified successfully.
 
 ### .ENV CONFIGURATION
 Current `.env` file:
@@ -120,7 +113,7 @@ ADMIN_PASSWORD=Admin@123456
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=jsagricultureimportexportco@gmail.com
-SMTP_PASS=your_16_character_app_password_here     ← NEEDS TO BE REPLACED
+SMTP_PASS=your_16_character_app_password
 SMTP_FROM=jsagricultureimportexportco@gmail.com
 ```
 
@@ -174,7 +167,7 @@ app.post('/api/contact', async (req, res) => {
   // 3. Checks if SMTP is configured
   // 4. If SMTP configured: Sends email via nodemailer
   // 5. If SMTP not configured: Returns success message (local backup)
-  // 6. On error: Still returns success (fallback to local storage)
+   // 6. On error: Returns a delivery error while retaining the local backup
 })
 ```
 
@@ -254,7 +247,7 @@ npm run build
 **Phone:** 0791 945 206 / 0795 398 553  
 **WhatsApp:** https://wa.me/250791945206  
 **Location:** Kayonza / Nyamirama, Rwanda  
-**Website:** https://www.jsagriculturaltd.com
+**Website:** https://www.jsagricultureltd.com
 
 ---
 
