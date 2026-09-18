@@ -17,6 +17,20 @@ const year = new Date().getFullYear()
         <a href="#process">How We Work</a>
         <a href="#contact">Contact</a>
       </div>
+      <nav class="social-links" aria-label="Social media links">
+        <a href="https://web.facebook.com/profile.php?id=61594683622096" target="_blank" rel="noreferrer" aria-label="Follow J.S Agriculture on Facebook">
+          <svg class="facebook-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 8h3V4h-3c-3.3 0-5 1.7-5 5v3H6v4h3v4h4v-4h3l1-4h-4V9c0-.7.3-1 1-1Z" /></svg>
+          <span>Facebook</span>
+        </a>
+        <a href="https://www.instagram.com/jsagricultureimportexportcoltd/" target="_blank" rel="noreferrer" aria-label="Follow J.S Agriculture on Instagram">
+          <svg class="instagram-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle class="social-dot" cx="17.5" cy="6.5" r="1" /></svg>
+          <span>Instagram</span>
+        </a>
+        <a href="https://www.linkedin.com/in/js-agriculture-importexportcoltd-2121b9438" target="_blank" rel="noreferrer" aria-label="Connect with J.S Agriculture on LinkedIn">
+          <svg class="linkedin-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8.5A2.5 2.5 0 1 0 5 3.5a2.5 2.5 0 0 0 0 5ZM3 10h4v11H3V10Zm6 0h4v1.7c.8-1.2 2.1-2.2 4.2-2.2 4 0 4.8 2.6 4.8 6v5.5h-4v-4.9c0-1.2 0-2.8-1.8-2.8s-2.1 1.3-2.1 2.7V21H9V10Z" /></svg>
+          <span>LinkedIn</span>
+        </a>
+      </nav>
       <p class="copyright">&copy; {{ year }} J.S Agriculture Import and Export Co. Ltd. All rights reserved.</p>
     </div>
   </footer>
@@ -72,6 +86,58 @@ const year = new Date().getFullYear()
 
 .footer-links a:hover {
   color: var(--sun);
+}
+
+.social-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  width: 100%;
+  padding-top: 4px;
+}
+
+.social-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: rgba(246, 241, 226, 0.85);
+  font-size: 0.86rem;
+  text-decoration: none;
+}
+
+.social-links a:hover {
+  color: var(--sun);
+}
+
+.social-links svg {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  fill: currentColor;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+
+.social-links .facebook-icon {
+  color: #1877f2;
+}
+
+.social-links .instagram-icon {
+  color: #e4405f;
+}
+
+.social-links .linkedin-icon {
+  color: #0a66c2;
+}
+
+.social-links svg rect,
+.social-links svg circle {
+  fill: none;
+}
+
+.social-links svg .social-dot {
+  fill: currentColor;
+  stroke: none;
 }
 
 .copyright {

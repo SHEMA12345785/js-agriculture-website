@@ -50,9 +50,9 @@ Example for Gmail:
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_SECURE=false
-SMTP_USER=your-email@gmail.com
+SMTP_USER=jsagricultureltd.co@gmail.com
 SMTP_PASS=your-16-character-app-password
-SMTP_FROM=your-email@gmail.com
+SMTP_FROM=jsagricultureltd.co@gmail.com
 ```
 
 For Gmail, enable 2-Step Verification and create an App Password. Do not use your normal Gmail password. After changing `.env`, restart the backend with `npm run server`. Contact submissions are also backed up in `server/submissions.json`; if SMTP delivery fails, the form returns an error instead of showing a false success message.
