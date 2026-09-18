@@ -13,6 +13,8 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const app = express()
 const port = process.env.PORT || 4000
+const distDir = path.join(__dirname, '..', 'dist')
+app.set('trust proxy', 1)
 
 const adminEmail = process.env.ADMIN_EMAIL || 'jsagricultureimportexportco@gmail.com'
 let adminPasswordHash = bcrypt.hashSync(process.env.ADMIN_PASSWORD || 'Admin@123456', 10)
@@ -48,6 +50,10 @@ function escapeHtml(value) {
     "'": '&#39;',
     '"': '&quot;',
   })[character])
+}
+
+function getPublicApiBase(req) {
+  return (process.env.PUBLIC_API_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '')
 }
 
 const uploadsDir = path.join(__dirname, 'uploads')
@@ -235,7 +241,7 @@ app.post('/api/gallery', authMiddleware, upload.single('image'), (req, res) => {
     return res.status(400).json({ message: 'Image is required.' })
   }
 
-  const imageUrl = `${process.env.VITE_API_URL || 'http://localhost:4000'}/uploads/gallery/${file.filename}`
+  const imageUrl = `${getPublicApiBase(req)}/uploads/gallery/${file.filename}`
   const item = {
     id: `gallery-${Date.now()}`,
     title: title.trim(),
@@ -262,7 +268,7 @@ app.put('/api/gallery/:id', authMiddleware, upload.single('image'), (req, res) =
   }
 
   const currentItem = galleryItems[index]
-  const imageUrl = req.file ? `${process.env.VITE_API_URL || 'http://localhost:4000'}/uploads/gallery/${req.file.filename}` : currentItem.image
+  const imageUrl = req.file ? `${getPublicApiBase(req)}/uploads/gallery/${req.file.filename}` : currentItem.image
 
   galleryItems[index] = {
     ...currentItem,
@@ -303,7 +309,6 @@ app.post('/api/contact', async (req, res) => {
     message,
     timestamp: new Date().toISOString(),
   }
-
   // Save to file as backup
   const submissionsFile = path.join(__dirname, 'submissions.json')
   try {
@@ -355,6 +360,14 @@ app.post('/api/contact', async (req, res) => {
     })
   }
 })
+
+if (fs.existsSync(distDir)) {
+  app.use(express.static(distDir))
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api/')) return next()
+    return res.sendFile(path.join(distDir, 'index.html'))
+  })
+}
 
 app.listen(port, () => {
   console.log(`Backend running on http://localhost:${port}`)

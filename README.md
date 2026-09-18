@@ -21,6 +21,15 @@ npm run build
 
 Output goes to `dist/`. Deploy that folder to any static host (Netlify, Vercel, GitHub Pages, etc).
 
+For the simplest multi-device deployment, build the frontend and run the Express server from the project root. The server automatically serves `dist/` and the API from the same origin:
+
+```bash
+npm run build
+npm start
+```
+
+Users can then open the public server URL from any computer or phone and use the gallery admin login and contact form. Keep the production `.env` on the server with the same `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `JWT_SECRET`, and SMTP settings. Set `PUBLIC_API_URL` to the public API URL when the server is behind a proxy or has a separate public hostname; otherwise image URLs use the current public request host.
+
 ## Production frontend and admin login
 
 Admin login is handled by the backend with JWT, so it is available from every device when the frontend can reach the hosted backend. Before building for production, set `VITE_API_URL` to the public backend URL when frontend and backend are hosted separately:
