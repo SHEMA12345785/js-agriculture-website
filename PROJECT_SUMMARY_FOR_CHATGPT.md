@@ -100,7 +100,7 @@ js-agriculture-website improvement/
 **Problem:** 
 - Contact form shows "success" message
 - Messages are saved locally in `submissions.json`
-- But emails are NOT being sent to jsagricultureltd.co@gmail.com
+- But emails are NOT being sent to jsagricultureimportexportco@gmail.com
 - Reason: SMTP_PASS in `.env` is still a placeholder: `your_16_character_app_password_here`
 
 **Solution Needed:**
@@ -115,13 +115,13 @@ VITE_API_URL=http://localhost:4000
 PORT=4000
 CLIENT_URL=http://localhost:5173
 JWT_SECRET=local-dev-secret-change-this
-ADMIN_EMAIL=jsagricultureltd.co@gmail.com
+ADMIN_EMAIL=jsagricultureimportexportco@gmail.com
 ADMIN_PASSWORD=Admin@123456
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
-SMTP_USER=jsagricultureltd.co@gmail.com
+SMTP_USER=jsagricultureimportexportco@gmail.com
 SMTP_PASS=your_16_character_app_password_here     ← NEEDS TO BE REPLACED
-SMTP_FROM=jsagricultureltd.co@gmail.com
+SMTP_FROM=jsagricultureimportexportco@gmail.com
 ```
 
 ---
@@ -250,7 +250,7 @@ npm run build
 ## COMPANY INFORMATION
 
 **Company:** J.S Agriculture Import and Export Company Ltd  
-**Email:** jsagricultureltd.co@gmail.com  
+**Email:** jsagricultureimportexportco@gmail.com
 **Phone:** 0791 945 206 / 0795 398 553  
 **WhatsApp:** https://wa.me/250791945206  
 **Location:** Kayonza / Nyamirama, Rwanda  
@@ -273,5 +273,5 @@ npm run build
 - API URL: http://localhost:4000/api
 
 ### Admin Credentials (for local development)
-- Email: jsagricultureltd.co@gmail.com
+- Email: jsagricultureimportexportco@gmail.com
 - Password: Admin@123456 (change in `.env`)

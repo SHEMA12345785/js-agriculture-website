@@ -409,7 +409,7 @@ async function deletePhoto(id) {
 }
 
 onMounted(async () => {
-  const adminEmail = 'jsagricultureltd.co@gmail.com'
+  const adminEmail = 'jsagricultureimportexportco@gmail.com'
 
   authForm.value.email = adminEmail
   passwordResetEmail.value = adminEmail

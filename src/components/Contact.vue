@@ -31,7 +31,7 @@ async function submit() {
     if (!response.ok) throw new Error('The message could not be sent.')
     sent.value = true
   } catch {
-    error.value = 'We could not send your message. Please email us directly at jsagricultureltd.co@gmail.com.'
+    error.value = 'We could not send your message. Please email us directly at jsagricultureimportexportco@gmail.com.'
   } finally {
     sending.value = false
   }
@@ -70,7 +70,7 @@ function startNewMessage() {
           </li>
           <li>
             <span class="label">Email</span>
-            <a href="mailto:jsagricultureltd.co@gmail.com">jsagricultureltd.co@gmail.com</a>
+            <a href="mailto:jsagricultureimportexportco@gmail.com">jsagricultureimportexportco@gmail.com</a>
           </li>
           <li>
             <span class="label">Location</span>

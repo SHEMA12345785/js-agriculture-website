@@ -14,7 +14,7 @@ const __dirname = path.dirname(__filename)
 const app = express()
 const port = process.env.PORT || 4000
 
-const adminEmail = process.env.ADMIN_EMAIL || 'jsagricultureltd.co@gmail.com'
+const adminEmail = process.env.ADMIN_EMAIL || 'jsagricultureimportexportco@gmail.com'
 let adminPasswordHash = bcrypt.hashSync(process.env.ADMIN_PASSWORD || 'Admin@123456', 10)
 const jwtSecret = process.env.JWT_SECRET || 'local-dev-secret-change-this'
 const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173'

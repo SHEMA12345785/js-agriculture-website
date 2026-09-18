@@ -8,7 +8,7 @@ const year = new Date().getFullYear()
       <div>
         <strong>J.S Agriculture Import and Export Company Ltd</strong>
         <p>Better Farmers &rarr; Better Products &rarr; A Brighter Future</p>
-        <a class="footer-email" href="mailto:jsagricultureltd.co@gmail.com">jsagricultureltd.co@gmail.com</a>
+        <a class="footer-email" href="mailto:jsagricultureimportexportco@gmail.com">jsagricultureimportexportco@gmail.com</a>
       </div>
       <div class="footer-links">
         <a href="#about">About</a>
@@ -18,9 +18,13 @@ const year = new Date().getFullYear()
         <a href="#contact">Contact</a>
       </div>
       <nav class="social-links" aria-label="Social media links">
-        <a href="https://web.facebook.com/profile.php?id=61594683622096" target="_blank" rel="noreferrer" aria-label="Follow J.S Agriculture on Facebook">
+        <a href="https://web.facebook.com/profile.php?id=61594652273831" target="_blank" rel="noreferrer" aria-label="Follow J.S Agriculture on Facebook">
           <svg class="facebook-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 8h3V4h-3c-3.3 0-5 1.7-5 5v3H6v4h3v4h4v-4h3l1-4h-4V9c0-.7.3-1 1-1Z" /></svg>
           <span>Facebook</span>
+        </a>
+        <a href="https://x.com/js64131?s=11" target="_blank" rel="noreferrer" aria-label="Follow J.S Agriculture on X">
+          <svg class="x-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.9 2h3.1l-6.77 7.74L23.2 22h-6.24l-4.89-6.39L6.48 22H3.36l7.24-8.28L2.8 2h6.4l4.42 5.84L18.9 2Zm-1.1 17.9h1.73L8.26 3.98H6.4L17.8 19.9Z" /></svg>
+          <span>X</span>
         </a>
         <a href="https://www.instagram.com/jsagricultureimportexportcoltd/" target="_blank" rel="noreferrer" aria-label="Follow J.S Agriculture on Instagram">
           <svg class="instagram-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle class="social-dot" cx="17.5" cy="6.5" r="1" /></svg>
@@ -120,6 +124,10 @@ const year = new Date().getFullYear()
 
 .social-links .facebook-icon {
   color: #1877f2;
+}
+
+.social-links .x-icon {
+  color: #f6f1e2;
 }
 
 .social-links .instagram-icon {
