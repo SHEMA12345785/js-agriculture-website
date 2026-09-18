@@ -1,0 +1,58 @@
+Attached Element Context from Integrated Browser
+
+Element: div.container.nav-inner
+
+URL: http://localhost:5173/#gallery
+
+HTML Path: div#app > header.nav > div.container.nav-inner
+
+Outer HTML:
+```html
+<div data-v-c3ceb15a="" class="container nav-inner"><a data-v-c3ceb15a="" href="#top" class="brand"><img data-v-c3ceb15a="" class="brand-logo" src="/LOGO.png" alt="J.S Agriculture logo"><span data-v-c3ceb15a="" class="brand-text"><strong data-v-c3ceb15a="">J.S Agriculture</strong><em data-v-c3ceb15a="">Import &amp; Export Co. Ltd</em></span></a><nav data-v-c3ceb15a="" id="primary-navigation" class="nav-links" aria-label="Primary navigation"><a data-v-c3ceb15a="" href="#top">Home</a><a data-v-c3ceb15a="" href="#about">About</a><a data-v-c3ceb15a="" href="#services">Services</a><a data-v-c3ceb15a="" href="#products">Products</a><a data-v-c3ceb15a="" href="#gallery">Gallery</a><a data-v-c3ceb15a="" href="#process">How We Work</a><a data-v-c3ceb15a="" href="#contact">Contact</a><a data-v-c3ceb15a="" href="tel:+250791945206" class="nav-phone">Call us</a></nav><button data-v-c3ceb15a="" class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-navigation" aria-label="Toggle navigation menu"><span data-v-c3ceb15a=""></span><span data-v-c3ceb15a=""></span><span data-v-c3ceb15a=""></span></button></div>
+```
+
+Dimensions:
+- top: 0px
+- left: 0px
+- width: 990px
+- height: 74px
+
+CSS:
+```css
+* { box-sizing: border-box; }
+.container { max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 32px; }
+.nav-inner[data-v-c3ceb15a] { display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  padding-top: 8px;
+  padding-bottom: 8px; }
+.nav-inner[data-v-c3ceb15a] { gap: 18px; }
+
+/* Inherited */
+body { color: var(--ink); font-family: var(--font-body); font-size: 17px; line-height: 1.55 }
+
+/* Resolved values */
+margin: 0px;
+padding: 8px 32px;
+align-items: center;
+box-sizing: border-box;
+color: rgb(22, 38, 31);
+column-gap: 18px;
+display: flex;
+font-family: Karla, sans-serif;
+font-size: 17px;
+height: 74px;
+justify-content: space-between;
+line-height: 26.35px;
+max-width: 1240px;
+row-gap: 18px;
+unicode-bidi: isolate /*UA*/;
+width: 925px;
+
+/* CSS variables */
+--font-body: "Karla", sans-serif;
+--ink: #16261f;
+```
