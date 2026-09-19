@@ -28,7 +28,7 @@ npm run build
 npm start
 ```
 
-Users can then open the public server URL from any computer or phone and use the gallery admin login and contact form. Keep the production `.env` on the server with the same `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `JWT_SECRET`, and SMTP settings. Set `PUBLIC_API_URL` to the public API URL when the server is behind a proxy or has a separate public hostname; otherwise image URLs use the current public request host.
+Users can then open the public server URL from any computer or phone and use the gallery admin login and contact form. Keep the production `.env` on the server with the same `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `JWT_SECRET`, and SMTP settings. Set `PUBLIC_API_URL` to the public API URL when the server is behind a proxy or has a separate public hostname; otherwise image URLs use the current public request host. Set `CLIENT_URL` or comma-separated `CLIENT_URLS` to every deployed frontend origin allowed to call the API.
 
 ## Production frontend and admin login
 

@@ -28,10 +28,13 @@ async function submit() {
       }),
     })
 
-    if (!response.ok) throw new Error('The message could not be sent.')
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null)
+      throw new Error(payload?.message || 'The message could not be sent.')
+    }
     sent.value = true
-  } catch {
-    error.value = 'We could not send your message. Please email us directly at jsagricultureimportexportco@gmail.com.'
+  } catch (submissionError) {
+    error.value = submissionError.message || 'We could not send your message. Please email us directly at jsagricultureimportexportco@gmail.com.'
   } finally {
     sending.value = false
   }

@@ -20,6 +20,10 @@ const adminEmail = process.env.ADMIN_EMAIL || 'jsagricultureimportexportco@gmail
 let adminPasswordHash = bcrypt.hashSync(process.env.ADMIN_PASSWORD || 'Admin@123456', 10)
 const jwtSecret = process.env.JWT_SECRET || 'local-dev-secret-change-this'
 const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173'
+const allowedOrigins = (process.env.CLIENT_URLS || clientUrl)
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean)
 
 const smtpConfigured = Boolean(
   process.env.SMTP_HOST &&
@@ -62,7 +66,13 @@ const galleryDir = path.join(uploadsDir, 'gallery')
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true })
 if (!fs.existsSync(galleryDir)) fs.mkdirSync(galleryDir, { recursive: true })
 
-app.use(cors({ origin: true, credentials: true }))
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true)
+    return callback(new Error('Origin is not allowed by CORS'))
+  },
+  credentials: true,
+}))
 app.use(express.json({ limit: '20mb' }))
 app.use('/uploads', express.static(galleryDir))
 
@@ -157,6 +167,10 @@ app.post('/api/admin/login', (req, res) => {
     token: generateToken({ email: adminEmail }),
     user: { email: adminEmail },
   })
+})
+
+app.get('/api/admin/session', authMiddleware, (req, res) => {
+  res.json({ user: { email: req.user.email }, role: req.user.role })
 })
 
 app.post('/api/admin/forgot-password', async (req, res) => {

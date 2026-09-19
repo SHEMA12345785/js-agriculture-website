@@ -2,19 +2,6 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 import { apiBase, getAuthHeaders } from '../lib/supabase'
 
-const STORAGE_KEY = 'js-agriculture-gallery-v1'
-
-const defaultPhotos = [
-  { id: 'default-1', title: 'Partnership handshake', description: 'Sealing new partnerships with growers', image: '/gallery/partnership-handshake.jpg' },
-  { id: 'default-2', title: 'Cooperative planting day', description: 'Cooperative planting day in Nyamirama', image: '/gallery/cooperative-planting.jpg' },
-  { id: 'default-3', title: 'Land preparation', description: 'Mechanised land preparation ahead of planting', image: '/gallery/mechanized-ploughing.jpg' },
-  { id: 'default-4', title: 'Farmer training', description: 'Pre-season training for partner farmers', image: '/gallery/farmer-training.jpg' },
-  { id: 'default-5', title: 'Field monitoring', description: 'Field monitoring and harvest record-keeping', image: '/gallery/field-monitoring.jpg' },
-  { id: 'default-6', title: 'Drying yard', description: 'Drying yards at peak harvest', image: '/gallery/chili-drying-yard.jpg' },
-  { id: 'default-7', title: 'Cooperative meeting', description: 'Cooperative meetings with grower families', image: '/gallery/cooperative-meeting.jpg' },
-  { id: 'default-8', title: 'Community launch day', description: 'Community launch day with our field team', image: '/gallery/community-launch-day.jpg' },
-]
-
 const photos = ref([])
 const selectedPhoto = ref(null)
 const isAdminOpen = ref(false)
@@ -36,34 +23,6 @@ const form = ref({
   image: '',
   file: null,
 })
-
-function buildId() {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
-  return `photo-${Date.now()}-${Math.random().toString(16).slice(2)}`
-}
-
-function readGallery() {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY)
-
-    if (!saved) {
-      photos.value = [...defaultPhotos]
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(photos.value))
-      return
-    }
-
-    const parsed = JSON.parse(saved)
-    photos.value = Array.isArray(parsed) && parsed.length > 0 ? parsed : [...defaultPhotos]
-  } catch (error) {
-    console.error('Failed to load gallery from local storage', error)
-    photos.value = [...defaultPhotos]
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(photos.value))
-  }
-}
-
-function saveGallery() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(photos.value))
-}
 
 function setSession(token, user) {
   localStorage.setItem('js-agri-admin-token', token)
@@ -90,6 +49,7 @@ async function requestJson(url, options = {}) {
       message = response.statusText || message
     }
 
+    if (response.status === 401) clearSession()
     throw new Error(message)
   }
 
@@ -131,20 +91,15 @@ async function fetchRemoteGallery() {
   try {
     const data = await requestJson(`${apiBase}/api/gallery`)
 
-    if (!data || !Array.isArray(data.items)) {
-      readGallery()
-      return
-    }
-
-    photos.value = data.items.map((item) => ({
+    photos.value = Array.isArray(data?.items) ? data.items.map((item) => ({
       id: item.id,
       title: item.title,
       description: item.description,
       image: item.image,
-    }))
+    })) : []
   } catch (error) {
     console.error('Unable to fetch gallery from backend', error)
-    readGallery()
+    photos.value = []
   }
 }
 
@@ -157,12 +112,20 @@ async function checkSession() {
 
   if (!token) {
     isAuthenticated.value = false
-    readGallery()
+    await fetchRemoteGallery()
     return
   }
 
-  isAuthenticated.value = true
-  await fetchRemoteGallery()
+  try {
+    const response = await requestJson(`${apiBase}/api/admin/session`, {
+      headers: getAuthHeaders(token),
+    })
+    isAuthenticated.value = Boolean(response?.user)
+    await fetchRemoteGallery()
+  } catch {
+    clearSession()
+    await fetchRemoteGallery()
+  }
 }
 
 async function signIn() {
@@ -310,6 +273,11 @@ function onImageSelected(event) {
 }
 
 async function submitPhoto() {
+  if (!isAuthenticated.value) {
+    notice.value = 'Please sign in again to manage the gallery.'
+    return
+  }
+
   if (!form.value.title.trim() || !form.value.description.trim()) {
     notice.value = 'Please provide both a title and a description.'
     return
@@ -323,44 +291,25 @@ async function submitPhoto() {
   isLoading.value = true
 
   try {
-    if (isAuthenticated.value) {
-      const formData = new FormData()
-      formData.append('title', form.value.title.trim())
-      formData.append('description', form.value.description.trim())
+    const formData = new FormData()
+    formData.append('title', form.value.title.trim())
+    formData.append('description', form.value.description.trim())
 
-      if (form.value.file) {
-        formData.append('image', form.value.file)
-      }
+    if (form.value.file) {
+      formData.append('image', form.value.file)
+    }
 
-      const url = form.value.id ? `${apiBase}/api/gallery/${form.value.id}` : `${apiBase}/api/gallery`
-      const method = form.value.id ? 'PUT' : 'POST'
+    const url = form.value.id ? `${apiBase}/api/gallery/${form.value.id}` : `${apiBase}/api/gallery`
+    const method = form.value.id ? 'PUT' : 'POST'
 
-      const response = await requestJson(url, {
-        method,
-        headers: getAuthHeaders(localStorage.getItem('js-agri-admin-token'), true),
-        body: formData,
-      })
+    const response = await requestJson(url, {
+      method,
+      headers: getAuthHeaders(localStorage.getItem('js-agri-admin-token'), true),
+      body: formData,
+    })
 
-      if (!response) {
-        throw new Error('The backend did not respond with gallery data.')
-      }
-    } else {
-      const payload = {
-        id: form.value.id || buildId(),
-        title: form.value.title.trim(),
-        description: form.value.description.trim(),
-        image: form.value.image,
-      }
-
-      const existingIndex = photos.value.findIndex((photo) => photo.id === payload.id)
-
-      if (existingIndex >= 0) {
-        photos.value.splice(existingIndex, 1, payload)
-      } else {
-        photos.value.unshift(payload)
-      }
-
-      saveGallery()
+    if (!response) {
+      throw new Error('The backend did not respond with gallery data.')
     }
 
     resetForm()
@@ -400,12 +349,8 @@ async function deletePhoto(id) {
     }
   }
 
-  photos.value = photos.value.filter((photo) => photo.id !== id)
-  saveGallery()
-
-  if (form.value.id === id) {
-    resetForm()
-  }
+  clearSession()
+  notice.value = 'Please sign in again to manage the gallery.'
 }
 
 onMounted(async () => {
