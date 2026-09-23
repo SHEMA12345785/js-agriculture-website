@@ -1,0 +1,91 @@
+name: Deploy to LiteSpeed VPS
+
+# Deploys on every push to this branch while the pipeline is being set up.
+# Once verified end-to-end, change this to `main` so production pushes deploy
+# automatically.
+on:
+  push:
+    branches:
+      - ci-cd-litespeed-deploy
+  workflow_dispatch: {}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      # Copies the app onto the VPS with rsync over SSH. Data that lives only
+      # on the server (uploaded gallery images, saved submissions, the admin
+      # password file, and .env) is excluded so a deploy never wipes it.
+      - name: Sync files to LiteSpeed VPS
+        uses: burnett01/rsync-deployments@7.0.1
+        with:
+          switches: -avzr --delete
+          exclude: |
+            .git/
+            .github/
+            node_modules/
+            .env
+            .env.*
+            server/uploads/
+            server/gallery-items.json
+            server/submissions.json
+            server/admin.json
+          path: ./
+          remote_path: ${{ secrets.LITESPEED_DEPLOY_PATH }}
+          remote_host: ${{ secrets.LITESPEED_HOST }}
+          remote_port: ${{ secrets.LITESPEED_PORT }}
+          remote_user: ${{ secrets.LITESPEED_USERNAME }}
+          remote_key: ${{ secrets.LITESPEED_SSH_KEY }}
+
+      # Installs production dependencies on the server itself (never ships
+      # node_modules over the wire) and reloads the PM2-managed process.
+      # First deploy on a fresh server needs `pm2 start server/index.js --name
+      # js-agriculture-website` run once by hand so `pm2 restart` has a
+      # process to find; after that this step is enough on its own.
+      - name: Install server dependencies and restart app
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.LITESPEED_HOST }}
+          port: ${{ secrets.LITESPEED_PORT }}
+          username: ${{ secrets.LITESPEED_USERNAME }}
+          key: ${{ secrets.LITESPEED_SSH_KEY }}
+          script: |
+            cd ${{ secrets.LITESPEED_DEPLOY_PATH }}
+            npm ci --omit=dev
+            pm2 restart js-agriculture-website
+            pm2 save
+
+# --------------------------------------------------------------------------
+# Required GitHub repo secrets (Settings -> Secrets and variables -> Actions):
+#   LITESPEED_HOST         VPS IP address or hostname
+#   LITESPEED_PORT         SSH port (usually 22)
+#   LITESPEED_USERNAME     SSH user (e.g. root, or a deploy user)
+#   LITESPEED_SSH_KEY      Private key with access to that user (PEM format)
+#   LITESPEED_DEPLOY_PATH  Absolute path to the app on the VPS, e.g.
+#                          /home/deploy/js-agriculture-website
+#
+# One-time manual setup on the VPS before the first CI run:
+#   1. Create LITESPEED_DEPLOY_PATH and put a .env file in it (SMTP, JWT
+#      secret, admin credentials) - never committed to git.
+#   2. Install Node.js and PM2 (`npm i -g pm2`) on the server.
+#   3. Run `npm ci --omit=dev` once, then
+#      `pm2 start server/index.js --name js-agriculture-website && pm2 save`
+#      so future deploys can just `pm2 restart`.
+#   4. Configure the LiteSpeed vhost to reverse-proxy the domain to
+#      127.0.0.1:PORT (PORT from .env, defaults to 4000).
+# --------------------------------------------------------------------------
