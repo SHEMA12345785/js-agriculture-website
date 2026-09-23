@@ -92,8 +92,21 @@ function isValidEmail(value) {
 }
 
 function getPublicBase(req) {
-  const configured = (process.env.PUBLIC_API_URL || clientUrl || '').replace(/\/$/, '')
+  const configured = (clientUrl || process.env.PUBLIC_SITE_URL || '').replace(/\/$/, '')
   if (configured) return configured
+
+  // When the frontend and API share a host, the proxy's Host header can still
+  // be localhost:4000. Prefer the browser origin so reset links work from
+  // other devices on the LAN and from the public website domain.
+  const origin = String(req.get('origin') || '').replace(/\/$/, '')
+  if (/^https?:\/\/[^/]+$/i.test(origin)) return origin
+
+  const forwardedProtocol = String(req.get('x-forwarded-proto') || '').split(',')[0].trim()
+  const forwardedHost = String(req.get('x-forwarded-host') || '').split(',')[0].trim()
+  if (/^https?$/i.test(forwardedProtocol) && forwardedHost) {
+    return `${forwardedProtocol}://${forwardedHost}`
+  }
+
   return `${req.protocol}://${req.get('host')}`.replace(/\/$/, '')
 }
 
