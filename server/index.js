@@ -385,7 +385,7 @@ function saveSubmission(submission) {
 }
 
 app.post('/api/contact', async (req, res) => {
-  const { name, email, phone, message } = req.body || {}
+  const { name, email, phone, country, message } = req.body || {}
 
   if (!name || !email || !message) {
     return res.status(400).json({ message: 'Please fill in your name, email and message.' })
@@ -399,6 +399,7 @@ app.post('/api/contact', async (req, res) => {
     id: Date.now(),
     name: String(name).trim().slice(0, 200),
     email: String(email).trim().slice(0, 200),
+    country: String(country || '').trim().slice(0, 100) || 'Not provided',
     phone: String(phone || '').trim().slice(0, 60) || 'Not provided',
     message: String(message).trim().slice(0, 5000),
     timestamp: new Date().toISOString(),
@@ -427,6 +428,7 @@ app.post('/api/contact', async (req, res) => {
         <h2>New Contact Form Submission</h2>
         <p><strong>Name:</strong> ${escapeHtml(submission.name)}</p>
         <p><strong>Email:</strong> ${escapeHtml(submission.email)}</p>
+        <p><strong>Country of residence:</strong> ${escapeHtml(submission.country)}</p>
         <p><strong>Phone:</strong> ${escapeHtml(submission.phone)}</p>
         <p><strong>Message:</strong></p>
         <p>${escapeHtml(submission.message).replace(/\n/g, '<br>')}</p>

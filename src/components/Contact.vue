@@ -5,12 +5,43 @@ import { apiUrl } from '../lib/api'
 const name = ref('')
 const email = ref('')
 const phone = ref('')
+const residenceCountry = ref('RW')
+const otherCountry = ref('')
+const callingCode = ref('+250')
 const message = ref('')
 const sent = ref(false)
 const sending = ref(false)
 const error = ref('')
 
 const confirmation = ref('')
+
+// Keep the country and calling code together so the number can be reached
+// internationally. The "Other" option supports countries not listed here.
+const countries = [
+  ['AF', 'Afghanistan', '+93'], ['AL', 'Albania', '+355'], ['DZ', 'Algeria', '+213'],
+  ['AR', 'Argentina', '+54'], ['AU', 'Australia', '+61'], ['AT', 'Austria', '+43'],
+  ['BD', 'Bangladesh', '+880'], ['BE', 'Belgium', '+32'], ['BR', 'Brazil', '+55'],
+  ['CA', 'Canada', '+1'], ['CN', 'China', '+86'], ['CO', 'Colombia', '+57'],
+  ['CD', 'Congo (DRC)', '+243'], ['DK', 'Denmark', '+45'], ['EG', 'Egypt', '+20'],
+  ['ET', 'Ethiopia', '+251'], ['FR', 'France', '+33'], ['DE', 'Germany', '+49'],
+  ['GH', 'Ghana', '+233'], ['IN', 'India', '+91'], ['ID', 'Indonesia', '+62'],
+  ['IR', 'Iran', '+98'], ['IQ', 'Iraq', '+964'], ['IE', 'Ireland', '+353'],
+  ['IL', 'Israel', '+972'], ['IT', 'Italy', '+39'], ['JP', 'Japan', '+81'],
+  ['KE', 'Kenya', '+254'], ['MY', 'Malaysia', '+60'], ['MX', 'Mexico', '+52'],
+  ['MA', 'Morocco', '+212'], ['MZ', 'Mozambique', '+258'], ['NP', 'Nepal', '+977'],
+  ['NL', 'Netherlands', '+31'], ['NZ', 'New Zealand', '+64'], ['NG', 'Nigeria', '+234'],
+  ['PK', 'Pakistan', '+92'], ['PH', 'Philippines', '+63'], ['PT', 'Portugal', '+351'],
+  ['RW', 'Rwanda', '+250'], ['SA', 'Saudi Arabia', '+966'], ['SG', 'Singapore', '+65'],
+  ['ZA', 'South Africa', '+27'], ['KR', 'South Korea', '+82'], ['ES', 'Spain', '+34'],
+  ['LK', 'Sri Lanka', '+94'], ['TZ', 'Tanzania', '+255'], ['TH', 'Thailand', '+66'],
+  ['TR', 'Türkiye', '+90'], ['UG', 'Uganda', '+256'], ['AE', 'United Arab Emirates', '+971'],
+  ['GB', 'United Kingdom', '+44'], ['US', 'United States', '+1'], ['VN', 'Vietnam', '+84'],
+]
+
+function updateCountry() {
+  const country = countries.find(([code]) => code === residenceCountry.value)
+  if (country) callingCode.value = country[2]
+}
 
 function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(value || '').trim())
@@ -44,7 +75,8 @@ async function submit() {
       body: JSON.stringify({
         name: name.value.trim(),
         email: email.value.trim(),
-        phone: phone.value.trim() || '',
+        country: residenceCountry.value === 'OTHER' ? otherCountry.value.trim() : countries.find(([code]) => code === residenceCountry.value)?.[1],
+        phone: phone.value.trim() ? `${callingCode.value.trim()} ${phone.value.trim()}` : '',
         message: message.value.trim(),
       }),
       signal: controller.signal,
@@ -86,6 +118,9 @@ function startNewMessage() {
   name.value = ''
   email.value = ''
   phone.value = ''
+  residenceCountry.value = 'RW'
+  otherCountry.value = ''
+  callingCode.value = '+250'
   message.value = ''
 }
 </script>
@@ -145,8 +180,22 @@ function startNewMessage() {
           <input v-model="email" type="email" name="email" required placeholder="you@example.com" autocomplete="email" />
         </label>
         <label>
+          Country of residence
+          <select v-model="residenceCountry" name="country" required @change="updateCountry">
+            <option v-for="country in countries" :key="country[0]" :value="country[0]">{{ country[1] }}</option>
+            <option value="OTHER">Other / not listed</option>
+          </select>
+        </label>
+        <label v-if="residenceCountry === 'OTHER'">
+          Your country
+          <input v-model="otherCountry" type="text" name="otherCountry" required placeholder="Country of residence" />
+        </label>
+        <label>
           Phone <span class="optional">(optional)</span>
-          <input v-model="phone" type="tel" name="phone" placeholder="+250 ..." autocomplete="tel" />
+          <span class="phone-input">
+            <input v-model="callingCode" type="tel" name="callingCode" aria-label="International calling code" placeholder="+250" />
+            <input v-model="phone" type="tel" name="phone" placeholder="Your phone number" autocomplete="tel-national" />
+          </span>
         </label>
         <label>
           Message
@@ -299,6 +348,7 @@ h2 {
 }
 
 .contact-form input,
+.contact-form select,
 .contact-form textarea {
   font-family: var(--font-body);
   font-size: 1rem;
@@ -308,6 +358,21 @@ h2 {
   background: #fff;
   color: var(--ink);
   resize: vertical;
+}
+
+.phone-input {
+  display: grid;
+  grid-template-columns: minmax(92px, 0.3fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+.contact-form select {
+  font: inherit;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: #fff;
+  color: var(--ink);
 }
 
 .contact-form input:focus,
