@@ -1,13 +1,13 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { apiUrl } from '../lib/api'
+import { AsYouType, getCountries, getCountryCallingCode, isValidPhoneNumber, parsePhoneNumberFromString } from 'libphonenumber-js'
 
 const name = ref('')
 const email = ref('')
 const phone = ref('')
 const residenceCountry = ref('RW')
-const otherCountry = ref('')
-const callingCode = ref('+250')
+const countrySearch = ref('')
 const message = ref('')
 const sent = ref(false)
 const sending = ref(false)
@@ -15,32 +15,29 @@ const error = ref('')
 
 const confirmation = ref('')
 
-// Keep the country and calling code together so the number can be reached
-// internationally. The "Other" option supports countries not listed here.
-const countries = [
-  ['AF', 'Afghanistan', '+93'], ['AL', 'Albania', '+355'], ['DZ', 'Algeria', '+213'],
-  ['AR', 'Argentina', '+54'], ['AU', 'Australia', '+61'], ['AT', 'Austria', '+43'],
-  ['BD', 'Bangladesh', '+880'], ['BE', 'Belgium', '+32'], ['BR', 'Brazil', '+55'],
-  ['CA', 'Canada', '+1'], ['CN', 'China', '+86'], ['CO', 'Colombia', '+57'],
-  ['CD', 'Congo (DRC)', '+243'], ['DK', 'Denmark', '+45'], ['EG', 'Egypt', '+20'],
-  ['ET', 'Ethiopia', '+251'], ['FR', 'France', '+33'], ['DE', 'Germany', '+49'],
-  ['GH', 'Ghana', '+233'], ['IN', 'India', '+91'], ['ID', 'Indonesia', '+62'],
-  ['IR', 'Iran', '+98'], ['IQ', 'Iraq', '+964'], ['IE', 'Ireland', '+353'],
-  ['IL', 'Israel', '+972'], ['IT', 'Italy', '+39'], ['JP', 'Japan', '+81'],
-  ['KE', 'Kenya', '+254'], ['MY', 'Malaysia', '+60'], ['MX', 'Mexico', '+52'],
-  ['MA', 'Morocco', '+212'], ['MZ', 'Mozambique', '+258'], ['NP', 'Nepal', '+977'],
-  ['NL', 'Netherlands', '+31'], ['NZ', 'New Zealand', '+64'], ['NG', 'Nigeria', '+234'],
-  ['PK', 'Pakistan', '+92'], ['PH', 'Philippines', '+63'], ['PT', 'Portugal', '+351'],
-  ['RW', 'Rwanda', '+250'], ['SA', 'Saudi Arabia', '+966'], ['SG', 'Singapore', '+65'],
-  ['ZA', 'South Africa', '+27'], ['KR', 'South Korea', '+82'], ['ES', 'Spain', '+34'],
-  ['LK', 'Sri Lanka', '+94'], ['TZ', 'Tanzania', '+255'], ['TH', 'Thailand', '+66'],
-  ['TR', 'Türkiye', '+90'], ['UG', 'Uganda', '+256'], ['AE', 'United Arab Emirates', '+971'],
-  ['GB', 'United Kingdom', '+44'], ['US', 'United States', '+1'], ['VN', 'Vietnam', '+84'],
-]
+const regionNames = new Intl.DisplayNames(['en'], { type: 'region' })
+const countries = getCountries().map((code) => ({
+  code,
+  name: regionNames.of(code) || code,
+  callingCode: `+${getCountryCallingCode(code)}`,
+  flag: String.fromCodePoint(...[...code].map((letter) => letter.charCodeAt(0) + 127397)),
+})).sort((a, b) => a.name.localeCompare(b.name))
+const selectedCountry = computed(() => countries.find((country) => country.code === residenceCountry.value))
+const filteredCountries = computed(() => {
+  const query = countrySearch.value.trim().toLocaleLowerCase()
+  return query
+    ? countries.filter((country) => `${country.name} ${country.callingCode}`.toLocaleLowerCase().includes(query))
+    : countries
+})
+const formattedPhone = computed(() => phone.value ? new AsYouType(residenceCountry.value).input(phone.value) : '')
+const validPhone = computed(() => !phone.value || isValidPhoneNumber(phone.value, residenceCountry.value))
 
 function updateCountry() {
-  const country = countries.find(([code]) => code === residenceCountry.value)
-  if (country) callingCode.value = country[2]
+  phone.value = formattedPhone.value
+}
+
+function onPhoneInput(event) {
+  phone.value = new AsYouType(residenceCountry.value).input(event.target.value)
 }
 
 function isValidEmail(value) {
@@ -62,6 +59,13 @@ async function submit() {
     return
   }
 
+  if (!phone.value.trim() || !validPhone.value) {
+    error.value = phone.value.trim()
+      ? 'Please enter a valid phone number for your selected country.'
+      : 'Please enter your contact number.'
+    return
+  }
+
   sending.value = true
 
   // Abort rather than hanging forever on a slow or unreachable network.
@@ -75,8 +79,8 @@ async function submit() {
       body: JSON.stringify({
         name: name.value.trim(),
         email: email.value.trim(),
-        country: residenceCountry.value === 'OTHER' ? otherCountry.value.trim() : countries.find(([code]) => code === residenceCountry.value)?.[1],
-        phone: phone.value.trim() ? `${callingCode.value.trim()} ${phone.value.trim()}` : '',
+        country: `${selectedCountry.value?.flag || ''} ${selectedCountry.value?.name || residenceCountry.value}`,
+        phone: parsePhoneNumberFromString(phone.value, residenceCountry.value)?.formatInternational() || phone.value.trim(),
         message: message.value.trim(),
       }),
       signal: controller.signal,
@@ -119,8 +123,7 @@ function startNewMessage() {
   email.value = ''
   phone.value = ''
   residenceCountry.value = 'RW'
-  otherCountry.value = ''
-  callingCode.value = '+250'
+  countrySearch.value = ''
   message.value = ''
 }
 </script>
@@ -181,20 +184,24 @@ function startNewMessage() {
         </label>
         <label>
           Country of residence
-          <select v-model="residenceCountry" name="country" required @change="updateCountry">
-            <option v-for="country in countries" :key="country[0]" :value="country[0]">{{ country[1] }}</option>
-            <option value="OTHER">Other / not listed</option>
+          <input v-model="countrySearch" type="search" name="countrySearch" placeholder="Search all countries" autocomplete="off" aria-label="Search countries" />
+          <select v-model="residenceCountry" name="country" required size="5" @change="updateCountry">
+            <option v-for="country in filteredCountries" :key="country.code" :value="country.code">
+              {{ country.flag }} {{ country.name }} ({{ country.callingCode }})
+            </option>
           </select>
-        </label>
-        <label v-if="residenceCountry === 'OTHER'">
-          Your country
-          <input v-model="otherCountry" type="text" name="otherCountry" required placeholder="Country of residence" />
+          <span class="country-selected" aria-live="polite" v-if="selectedCountry">
+            {{ selectedCountry.flag }} {{ selectedCountry.name }} · {{ selectedCountry.callingCode }}
+          </span>
         </label>
         <label>
-          Phone <span class="optional">(optional)</span>
+          Phone number
           <span class="phone-input">
-            <input v-model="callingCode" type="tel" name="callingCode" aria-label="International calling code" placeholder="+250" />
-            <input v-model="phone" type="tel" name="phone" placeholder="Your phone number" autocomplete="tel-national" />
+            <span class="calling-code" aria-label="International calling code">{{ selectedCountry?.callingCode }}</span>
+            <input :value="formattedPhone" @input="onPhoneInput" type="tel" name="phone" :placeholder="selectedCountry ? `Number in ${selectedCountry.name}` : 'Your phone number'" autocomplete="tel-national" inputmode="tel" required :aria-invalid="phone && !validPhone" />
+          </span>
+          <span class="phone-hint" :class="{ 'phone-invalid': phone && !validPhone }" aria-live="polite">
+            {{ phone && !validPhone ? 'Enter a valid number for this country.' : `Your number will be shared as ${selectedCountry?.callingCode || ''} plus your local number.` }}
           </span>
         </label>
         <label>
@@ -366,6 +373,32 @@ h2 {
   gap: 8px;
 }
 
+.calling-code,
+.country-selected {
+  display: flex;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: #f8f7f2;
+  color: var(--forest-deep);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.country-selected,
+.phone-hint {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.phone-invalid {
+  color: var(--chili-deep);
+}
+
 .contact-form select {
   font: inherit;
   padding: 12px 14px;
@@ -373,6 +406,9 @@ h2 {
   border-radius: 3px;
   background: #fff;
   color: var(--ink);
+  width: 100%;
+  min-height: 150px;
+  max-height: 230px;
 }
 
 .contact-form input:focus,
