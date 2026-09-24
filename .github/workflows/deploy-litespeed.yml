@@ -1,0 +1,80 @@
+name: Deploy to LiteSpeed (DirectAdmin + Passenger)
+
+# Runs on every push to this branch while the pipeline is being verified.
+# Once it works end to end, change the branch below to `main`.
+on:
+  push:
+    branches:
+      - ci-cd-litespeed-deploy
+  workflow_dispatch: {}
+
+env:
+  APP_DIR: /home/jsagricultureltd/app
+  NODE_ENV_ACTIVATE: /home/jsagricultureltd/nodevenv/app/20/bin/activate
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      # One archive instead of hundreds of small SFTP transfers: the server
+      # resets the connection on long multi-file uploads. .env and server-side
+      # data (uploads, gallery-items.json, submissions.json, admin.json) are not
+      # in the bundle, so a deploy never touches them.
+      - name: Create deploy bundle
+        run: tar -czf deploy.tar.gz dist server/index.js package.json package-lock.json
+
+      - name: Upload bundle
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.LITESPEED_HOST }}
+          port: ${{ secrets.LITESPEED_PORT }}
+          username: ${{ secrets.LITESPEED_USERNAME }}
+          password: ${{ secrets.LITESPEED_PASSWORD }}
+          source: deploy.tar.gz
+          target: /home/jsagricultureltd/tmp
+
+      # Passenger restarts the app when tmp/restart.txt is touched.
+      - name: Extract, install dependencies, restart
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.LITESPEED_HOST }}
+          port: ${{ secrets.LITESPEED_PORT }}
+          username: ${{ secrets.LITESPEED_USERNAME }}
+          password: ${{ secrets.LITESPEED_PASSWORD }}
+          script: |
+            set -e
+            cd ${{ env.APP_DIR }}
+            rm -rf dist
+            tar -xzf /home/jsagricultureltd/tmp/deploy.tar.gz
+            rm -f /home/jsagricultureltd/tmp/deploy.tar.gz
+            source ${{ env.NODE_ENV_ACTIVATE }}
+            npm ci --omit=dev
+            mkdir -p tmp
+            touch tmp/restart.txt
+
+# --------------------------------------------------------------------------
+# Repo secrets to add (Settings -> Secrets and variables -> Actions):
+#   LITESPEED_HOST      198.251.89.114
+#   LITESPEED_PORT      25552
+#   LITESPEED_USERNAME  jsagricultureltd
+#   LITESPEED_PASSWORD  the SSH password for that account
+#
+# Server prerequisites (already done): app created in DirectAdmin ->
+# Setup Node.js App with root `app`, startup file `server/index.js`, and a
+# production .env inside /home/jsagricultureltd/app.
+# --------------------------------------------------------------------------
