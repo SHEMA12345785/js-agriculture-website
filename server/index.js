@@ -7,6 +7,8 @@ import multer from 'multer'
 import fs from 'fs'
 import path from 'path'
 import nodemailer from 'nodemailer'
+import crypto from 'crypto'
+import { getCountries, isValidPhoneNumber as isValidInternationalPhoneNumber } from 'libphonenumber-js'
 import { fileURLToPath } from 'url'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -368,8 +370,38 @@ app.delete('/api/gallery/:id', authMiddleware, (req, res) => {
 
 const submissionsFile = path.join(__dirname, 'submissions.json')
 
+const contactShareDurations = new Set([60 * 60 * 1000, 24 * 60 * 60 * 1000, 7 * 24 * 60 * 60 * 1000, 30 * 24 * 60 * 60 * 1000])
+
+function purgeExpiredContactPhones() {
+  try {
+    if (!fs.existsSync(submissionsFile)) return
+    const submissions = JSON.parse(fs.readFileSync(submissionsFile, 'utf-8'))
+    if (!Array.isArray(submissions)) return
+    let changed = false
+    const now = Date.now()
+    for (const submission of submissions) {
+      if (submission.phone && submission.phone !== 'Not provided' && !submission.phoneHidden &&
+          (!Number.isFinite(Date.parse(submission.phoneExpiresAt)) || Date.parse(submission.phoneExpiresAt) <= now)) {
+        submission.phone = 'Contact hidden'
+        submission.phoneHidden = true
+        submission.phoneHiddenAt = new Date(now).toISOString()
+        delete submission.phoneShareTokenHash
+        changed = true
+      }
+    }
+    if (changed) fs.writeFileSync(submissionsFile, JSON.stringify(submissions, null, 2))
+  } catch (error) {
+    console.error('Could not expire contact phone numbers:', error.message)
+  }
+}
+
+purgeExpiredContactPhones()
+const contactPurgeTimer = setInterval(purgeExpiredContactPhones, 5 * 1000)
+contactPurgeTimer.unref()
+
 function saveSubmission(submission) {
   try {
+    purgeExpiredContactPhones()
     let submissions = []
     if (fs.existsSync(submissionsFile)) {
       const parsed = JSON.parse(fs.readFileSync(submissionsFile, 'utf-8'))
@@ -385,7 +417,8 @@ function saveSubmission(submission) {
 }
 
 app.post('/api/contact', async (req, res) => {
-  const { name, email, phone, country, message } = req.body || {}
+  res.set('Cache-Control', 'no-store')
+  const { name, email, phone, country, countryCode, message, autoHideMs } = req.body || {}
 
   if (!name || !email || !message) {
     return res.status(400).json({ message: 'Please fill in your name, email and message.' })
@@ -395,12 +428,27 @@ app.post('/api/contact', async (req, res) => {
     return res.status(400).json({ message: 'Please enter a valid email address.' })
   }
 
+  if (!getCountries().includes(countryCode) || !isValidInternationalPhoneNumber(String(phone || '').trim(), countryCode)) {
+    return res.status(400).json({ message: 'Please enter a valid phone number for your selected country.' })
+  }
+
+  const duration = Number(autoHideMs)
+  if (!contactShareDurations.has(duration)) {
+    return res.status(400).json({ message: 'Choose a valid contact auto-hide duration.' })
+  }
+
+  const shareToken = crypto.randomBytes(32).toString('hex')
+  const expiresAt = new Date(Date.now() + duration).toISOString()
   const submission = {
     id: Date.now(),
     name: String(name).trim().slice(0, 200),
     email: String(email).trim().slice(0, 200),
     country: String(country || '').trim().slice(0, 100) || 'Not provided',
+    countryCode: String(countryCode),
     phone: String(phone || '').trim().slice(0, 60) || 'Not provided',
+    phoneExpiresAt: expiresAt,
+    phoneHidden: false,
+    phoneShareTokenHash: crypto.createHash('sha256').update(shareToken).digest('hex'),
     message: String(message).trim().slice(0, 5000),
     timestamp: new Date().toISOString(),
     emailDelivered: false,
@@ -415,6 +463,9 @@ app.post('/api/contact', async (req, res) => {
     return res.status(201).json({
       message: 'Thank you for your message. We have received it and will contact you soon.',
       emailDelivered: false,
+      submissionId: submission.id,
+      shareToken,
+      phoneExpiresAt: expiresAt,
     })
   }
 
@@ -429,7 +480,8 @@ app.post('/api/contact', async (req, res) => {
         <p><strong>Name:</strong> ${escapeHtml(submission.name)}</p>
         <p><strong>Email:</strong> ${escapeHtml(submission.email)}</p>
         <p><strong>Country of residence:</strong> ${escapeHtml(submission.country)}</p>
-        <p><strong>Phone:</strong> ${escapeHtml(submission.phone)}</p>
+        <p><strong>Phone:</strong> Available securely in the admin submissions view until ${escapeHtml(expiresAt)}.</p>
+        <p><strong>Submission ID:</strong> ${escapeHtml(String(submission.id))}</p>
         <p><strong>Message:</strong></p>
         <p>${escapeHtml(submission.message).replace(/\n/g, '<br>')}</p>
       `,
@@ -437,7 +489,7 @@ app.post('/api/contact', async (req, res) => {
 
     submission.emailDelivered = true
     console.log('Contact email delivered to', adminEmail)
-    return res.status(201).json({ message: 'Thank you for your message. It has been sent to our team.', emailDelivered: true })
+    return res.status(201).json({ message: 'Thank you for your message. It has been sent to our team.', emailDelivered: true, submissionId: submission.id, shareToken, phoneExpiresAt: expiresAt })
   } catch (error) {
     // The enquiry is already saved on the server, so it is NOT lost. Previously
     // this returned 503 and showed the visitor a failure message.
@@ -445,17 +497,51 @@ app.post('/api/contact', async (req, res) => {
     return res.status(201).json({
       message: 'Thank you for your message. We have received it and will contact you soon.',
       emailDelivered: false,
+      submissionId: submission.id,
+      shareToken,
+      phoneExpiresAt: expiresAt,
     })
+  }
+})
+
+app.post('/api/contact/:id/hide-phone', (req, res) => {
+  res.set('Cache-Control', 'no-store')
+  const { shareToken } = req.body || {}
+  if (typeof shareToken !== 'string' || !shareToken) {
+    return res.status(400).json({ message: 'A valid contact share token is required.' })
+  }
+  try {
+    const submissions = fs.existsSync(submissionsFile) ? JSON.parse(fs.readFileSync(submissionsFile, 'utf-8')) : []
+    const submission = Array.isArray(submissions) ? submissions.find((item) => String(item.id) === String(req.params.id)) : null
+    const suppliedHash = crypto.createHash('sha256').update(shareToken).digest()
+    const savedHash = submission?.phoneShareTokenHash ? Buffer.from(submission.phoneShareTokenHash, 'hex') : Buffer.alloc(0)
+    const tokenMatches = savedHash.length === suppliedHash.length && crypto.timingSafeEqual(savedHash, suppliedHash)
+    if (!submission || !tokenMatches || submission.phoneHidden) {
+      return res.status(404).json({ message: 'This contact is already hidden or unavailable.' })
+    }
+    submission.phone = 'Contact hidden'
+    submission.phoneHidden = true
+    submission.phoneHiddenAt = new Date().toISOString()
+    delete submission.phoneShareTokenHash
+    fs.writeFileSync(submissionsFile, JSON.stringify(submissions, null, 2))
+    return res.json({ message: 'Contact hidden.' })
+  } catch (error) {
+    console.error('Could not hide contact phone:', error.message)
+    return res.status(500).json({ message: 'Could not hide this contact right now.' })
   }
 })
 
 // Admin-only view of every enquiry, useful if SMTP delivery ever fails.
 app.get('/api/contact/submissions', authMiddleware, (_req, res) => {
   try {
+    purgeExpiredContactPhones()
     const submissions = fs.existsSync(submissionsFile)
       ? JSON.parse(fs.readFileSync(submissionsFile, 'utf-8'))
       : []
-    return res.json({ submissions: Array.isArray(submissions) ? submissions.slice().reverse() : [] })
+    const safeSubmissions = Array.isArray(submissions)
+      ? submissions.map(({ phoneShareTokenHash, ...submission }) => submission).reverse()
+      : []
+    return res.json({ submissions: safeSubmissions })
   } catch {
     return res.status(500).json({ message: 'Could not read submissions.' })
   }

@@ -8,12 +8,20 @@ const email = ref('')
 const phone = ref('')
 const residenceCountry = ref('RW')
 const countrySearch = ref('')
+const autoHideMs = ref(24 * 60 * 60 * 1000)
 const message = ref('')
 const sent = ref(false)
 const sending = ref(false)
 const error = ref('')
 
 const confirmation = ref('')
+const contactHidden = ref(false)
+const hidePending = ref(false)
+const contactShareToken = ref('')
+const submissionId = ref('')
+const phoneExpiresAt = ref('')
+const sharedPhone = ref('')
+let contactHideTimer
 
 const regionNames = new Intl.DisplayNames(['en'], { type: 'region' })
 const countries = getCountries().map((code) => ({
@@ -80,7 +88,9 @@ async function submit() {
         name: name.value.trim(),
         email: email.value.trim(),
         country: `${selectedCountry.value?.flag || ''} ${selectedCountry.value?.name || residenceCountry.value}`,
+        countryCode: residenceCountry.value,
         phone: parsePhoneNumberFromString(phone.value, residenceCountry.value)?.formatInternational() || phone.value.trim(),
+        autoHideMs: autoHideMs.value,
         message: message.value.trim(),
       }),
       signal: controller.signal,
@@ -100,7 +110,15 @@ async function submit() {
     }
 
     confirmation.value = payload?.message || 'Thank you for your message. We will contact you soon.'
+    contactShareToken.value = payload?.shareToken || ''
+    submissionId.value = payload?.submissionId || ''
+    phoneExpiresAt.value = payload?.phoneExpiresAt || new Date(Date.now() + autoHideMs.value).toISOString()
+    sharedPhone.value = parsePhoneNumberFromString(phone.value, residenceCountry.value)?.formatInternational() || phone.value
+    contactHidden.value = false
+    hidePending.value = false
     sent.value = true
+    clearTimeout(contactHideTimer)
+    contactHideTimer = setTimeout(() => hideContact(), Math.max(0, Date.parse(phoneExpiresAt.value) - Date.now()))
   } catch (requestError) {
     if (requestError.name === 'AbortError') {
       error.value = 'The request timed out. Please check your internet connection and try again.'
@@ -115,7 +133,32 @@ async function submit() {
   }
 }
 
+async function hideContact() {
+  if (contactHidden.value && !hidePending.value) return
+  clearTimeout(contactHideTimer)
+  contactHidden.value = true
+  sharedPhone.value = ''
+  phone.value = ''
+  if (!submissionId.value || !contactShareToken.value) return
+  try {
+    const response = await fetch(apiUrl(`/api/contact/${encodeURIComponent(submissionId.value)}/hide-phone`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shareToken: contactShareToken.value }),
+    })
+    if (response.ok || response.status === 404) {
+      hidePending.value = false
+      contactShareToken.value = ''
+    } else {
+      hidePending.value = true
+    }
+  } catch {
+    hidePending.value = true
+  }
+}
+
 function startNewMessage() {
+  clearTimeout(contactHideTimer)
   sent.value = false
   error.value = ''
   confirmation.value = ''
@@ -124,6 +167,13 @@ function startNewMessage() {
   phone.value = ''
   residenceCountry.value = 'RW'
   countrySearch.value = ''
+  autoHideMs.value = 24 * 60 * 60 * 1000
+  contactHidden.value = false
+  hidePending.value = false
+  contactShareToken.value = ''
+  submissionId.value = ''
+  phoneExpiresAt.value = ''
+  sharedPhone.value = ''
   message.value = ''
 }
 </script>
@@ -205,6 +255,16 @@ function startNewMessage() {
           </span>
         </label>
         <label>
+          Hide contact after
+          <select v-model.number="autoHideMs" name="autoHideMs" required>
+            <option :value="60 * 60 * 1000">1 hour</option>
+            <option :value="24 * 60 * 60 * 1000">24 hours</option>
+            <option :value="7 * 24 * 60 * 60 * 1000">7 days</option>
+            <option :value="30 * 24 * 60 * 60 * 1000">30 days</option>
+          </select>
+          <span class="phone-hint">Your number is removed from submission history when it expires. You can hide it sooner.</span>
+        </label>
+        <label>
           Message
           <textarea v-model="message" name="message" rows="5" required placeholder="Tell us about your farm, order or partnership"></textarea>
         </label>
@@ -219,6 +279,15 @@ function startNewMessage() {
         <span class="reply-label">Message sent</span>
         <h3>Thanks for reaching out, {{ name }}.</h3>
         <p>{{ confirmation || 'Your enquiry has been received. Our team will get back to you by phone or email as soon as possible.' }}</p>
+        <div class="shared-contact" aria-live="polite">
+          <strong>Contact shared</strong>
+          <span>{{ selectedCountry?.flag }} {{ selectedCountry?.name }} · {{ selectedCountry?.callingCode }}</span>
+          <span class="shared-phone">{{ contactHidden ? 'Contact hidden' : sharedPhone }}</span>
+          <span class="phone-hint" v-if="!contactHidden && phoneExpiresAt">Auto-hides {{ new Date(phoneExpiresAt).toLocaleString() }}</span>
+          <span class="phone-hint phone-invalid" v-if="hidePending">Hidden on this device; server removal is pending. Reconnect to retry.</span>
+        </div>
+        <button v-if="!contactHidden" class="btn btn-secondary" type="button" @click="hideContact">Hide contact now</button>
+        <button v-if="hidePending" class="btn btn-secondary" type="button" @click="hideContact">Retry hiding contact</button>
         <button class="btn btn-secondary" type="button" @click="startNewMessage">Send another message</button>
       </div>
     </div>
@@ -445,6 +514,27 @@ h2 {
 
 .contact-confirm p {
   color: var(--ink-soft);
+}
+
+.shared-contact {
+  display: grid;
+  gap: 8px;
+  margin: 22px 0 4px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper-dim);
+  overflow-wrap: anywhere;
+}
+
+.shared-contact strong {
+  color: var(--forest-deep);
+}
+
+.shared-phone {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  color: var(--forest-deep);
 }
 
 .reply-label {
