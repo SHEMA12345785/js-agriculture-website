@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { apiUrl } from '../lib/api'
 import { AsYouType, getCountries, getCountryCallingCode, isValidPhoneNumber, parsePhoneNumberFromString } from 'libphonenumber-js'
 
@@ -8,6 +8,9 @@ const email = ref('')
 const phone = ref('')
 const residenceCountry = ref('RW')
 const countrySearch = ref('')
+const countryOpen = ref(false)
+const countryPicker = ref(null)
+const countrySearchInput = ref(null)
 const autoHideMs = ref(24 * 60 * 60 * 1000)
 const message = ref('')
 const sent = ref(false)
@@ -39,6 +42,34 @@ const filteredCountries = computed(() => {
 })
 const formattedPhone = computed(() => phone.value ? new AsYouType(residenceCountry.value).input(phone.value) : '')
 const validPhone = computed(() => !phone.value || isValidPhoneNumber(phone.value, residenceCountry.value))
+
+function openCountryPicker() {
+  countryOpen.value = true
+  countrySearch.value = ''
+  nextTick(() => countrySearchInput.value?.focus())
+}
+
+function closeCountryPicker() {
+  countryOpen.value = false
+  countrySearch.value = ''
+}
+
+function selectCountry(country) {
+  residenceCountry.value = country.code
+  updateCountry()
+  closeCountryPicker()
+}
+
+function handleCountryOutsideClick(event) {
+  if (countryOpen.value && !countryPicker.value?.contains(event.target)) closeCountryPicker()
+}
+
+function handleCountryKeydown(event) {
+  if (event.key === 'Escape') closeCountryPicker()
+}
+
+onMounted(() => document.addEventListener('pointerdown', handleCountryOutsideClick))
+onBeforeUnmount(() => document.removeEventListener('pointerdown', handleCountryOutsideClick))
 
 function updateCountry() {
   phone.value = formattedPhone.value
@@ -232,18 +263,51 @@ function startNewMessage() {
           Email
           <input v-model="email" type="email" name="email" required placeholder="you@example.com" autocomplete="email" />
         </label>
-        <label>
-          Country of residence
-          <input v-model="countrySearch" type="search" name="countrySearch" placeholder="Search all countries" autocomplete="off" aria-label="Search countries" />
-          <select v-model="residenceCountry" name="country" required size="5" @change="updateCountry">
-            <option v-for="country in filteredCountries" :key="country.code" :value="country.code">
-              {{ country.flag }} {{ country.name }} ({{ country.callingCode }})
-            </option>
-          </select>
-          <span class="country-selected" aria-live="polite" v-if="selectedCountry">
-            {{ selectedCountry.flag }} {{ selectedCountry.name }} · {{ selectedCountry.callingCode }}
-          </span>
-        </label>
+        <div class="country-field">
+          <span class="field-label" id="country-residence-label">Country of residence</span>
+          <div class="country-picker" ref="countryPicker">
+            <button
+              class="country-trigger"
+              type="button"
+              aria-labelledby="country-residence-label"
+              aria-haspopup="listbox"
+              :aria-expanded="countryOpen"
+              @click="countryOpen ? closeCountryPicker() : openCountryPicker()"
+              @keydown="handleCountryKeydown"
+            >
+              <span>{{ selectedCountry?.flag }} {{ selectedCountry?.name }}</span>
+              <strong>{{ selectedCountry?.callingCode }}</strong>
+              <span class="country-chevron" aria-hidden="true">{{ countryOpen ? '⌃' : '⌄' }}</span>
+            </button>
+            <div v-if="countryOpen" class="country-dropdown">
+              <input
+                ref="countrySearchInput"
+                v-model="countrySearch"
+                type="search"
+                placeholder="Search countries"
+                autocomplete="off"
+                aria-label="Search countries"
+                @keydown="handleCountryKeydown"
+              />
+              <div class="country-options" role="listbox" aria-label="Countries">
+                <button
+                  v-for="country in filteredCountries"
+                  :key="country.code"
+                  class="country-option"
+                  :class="{ 'is-selected': country.code === residenceCountry }"
+                  type="button"
+                  role="option"
+                  :aria-selected="country.code === residenceCountry"
+                  @click="selectCountry(country)"
+                >
+                  <span>{{ country.flag }} {{ country.name }}</span>
+                  <strong>{{ country.callingCode }}</strong>
+                </button>
+                <p v-if="!filteredCountries.length" class="country-empty">No countries found.</p>
+              </div>
+            </div>
+          </div>
+        </div>
         <label>
           Phone number
           <span class="phone-input">
@@ -442,8 +506,7 @@ h2 {
   gap: 8px;
 }
 
-.calling-code,
-.country-selected {
+.calling-code {
   display: flex;
   align-items: center;
   padding: 12px 14px;
@@ -455,7 +518,6 @@ h2 {
   white-space: nowrap;
 }
 
-.country-selected,
 .phone-hint {
   padding: 0;
   border: 0;
@@ -476,8 +538,118 @@ h2 {
   background: #fff;
   color: var(--ink);
   width: 100%;
-  min-height: 150px;
-  max-height: 230px;
+}
+
+.country-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.field-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.country-picker {
+  position: relative;
+  min-width: 0;
+}
+
+.country-trigger {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 11px 14px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: #fff;
+  color: var(--ink);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.country-trigger > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.country-trigger strong,
+.country-option strong {
+  color: var(--forest-deep);
+  white-space: nowrap;
+}
+
+.country-chevron {
+  color: var(--ink-soft);
+}
+
+.country-trigger:focus-visible,
+.country-option:focus-visible {
+  outline: 2px solid var(--leaf);
+  outline-offset: 2px;
+}
+
+.country-dropdown {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 5px);
+  left: 0;
+  right: 0;
+  display: grid;
+  gap: 6px;
+  max-height: min(270px, 42vh);
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--paper);
+  box-shadow: 0 10px 28px rgb(24 40 30 / 18%);
+}
+
+.country-dropdown > input {
+  width: 100%;
+  padding: 9px 11px;
+}
+
+.country-options {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.country-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 400;
+  text-align: left;
+  cursor: pointer;
+}
+
+.country-option:hover,
+.country-option.is-selected {
+  background: var(--paper-dim);
+}
+
+.country-empty {
+  margin: 0;
+  padding: 10px;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
 }
 
 .contact-form input:focus,
