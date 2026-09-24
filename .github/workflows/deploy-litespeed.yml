@@ -1,11 +1,10 @@
 name: Deploy to LiteSpeed (DirectAdmin + Passenger)
 
-# Runs on every push to this branch while the pipeline is being verified.
-# Once it works end to end, change the branch below to `main`.
+# Runs on every push to main.
 on:
   push:
     branches:
-      - ci-cd-litespeed-deploy
+      - main
   workflow_dispatch: {}
 
 env:
@@ -63,7 +62,7 @@ jobs:
             tar -xzf /home/jsagricultureltd/tmp/deploy.tar.gz
             rm -f /home/jsagricultureltd/tmp/deploy.tar.gz
             source ${{ env.NODE_ENV_ACTIVATE }}
-            npm ci --omit=dev
+            npm install --omit=dev
             mkdir -p tmp
             touch tmp/restart.txt
 
