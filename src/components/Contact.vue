@@ -7,17 +7,15 @@ const name = ref('')
 const email = ref('')
 const phone = ref('')
 const residenceCountry = ref('RW')
-const countrySearch = ref('')
-const countryOpen = ref(false)
-const countryPicker = ref(null)
-const countrySearchInput = ref(null)
-const autoHideMs = ref(24 * 60 * 60 * 1000)
 const message = ref('')
 const sent = ref(false)
 const sending = ref(false)
 const error = ref('')
-
-const confirmation = ref('')
+const countrySearch = ref('')
+const autoHideMs = ref(24 * 60 * 60 * 1000)
+const showCountries = ref(false)
+const countryPicker = ref(null)
+const countrySearchInput = ref(null)
 const contactHidden = ref(false)
 const hidePending = ref(false)
 const contactShareToken = ref('')
@@ -27,52 +25,54 @@ const sharedPhone = ref('')
 let contactHideTimer
 
 const regionNames = new Intl.DisplayNames(['en'], { type: 'region' })
-const countries = getCountries().map((code) => ({
+const countries = getCountries().map(code => ({
   code,
   name: regionNames.of(code) || code,
   callingCode: `+${getCountryCallingCode(code)}`,
-  flag: String.fromCodePoint(...[...code].map((letter) => letter.charCodeAt(0) + 127397)),
+  flag: String.fromCodePoint(...[...code].map(letter => letter.charCodeAt(0) + 127397)),
 })).sort((a, b) => a.name.localeCompare(b.name))
-const selectedCountry = computed(() => countries.find((country) => country.code === residenceCountry.value))
-const filteredCountries = computed(() => {
-  const query = countrySearch.value.trim().toLocaleLowerCase()
-  return query
-    ? countries.filter((country) => `${country.name} ${country.callingCode}`.toLocaleLowerCase().includes(query))
-    : countries
-})
+const selectedCountry = computed(() => countries.find(country => country.code === residenceCountry.value))
 const formattedPhone = computed(() => phone.value ? new AsYouType(residenceCountry.value).input(phone.value) : '')
 const validPhone = computed(() => !phone.value || isValidPhoneNumber(phone.value, residenceCountry.value))
 
+const filteredCountries = computed(() => {
+  const query = countrySearch.value.trim().toLowerCase()
+  if (!query) return countries
+  return countries.filter(country =>
+    country.name.toLowerCase().includes(query) ||
+    country.callingCode.includes(query) ||
+    country.code.toLowerCase().includes(query)
+  )
+})
+
+function selectCountry(country) {
+  residenceCountry.value = country.code
+  phone.value = formattedPhone.value
+  showCountries.value = false
+  countrySearch.value = ''
+}
+
+function countryFlag(code) {
+  return code.toUpperCase().replace(/./g, char => String.fromCodePoint(127397 + char.charCodeAt()))
+}
+
 function openCountryPicker() {
-  countryOpen.value = true
+  showCountries.value = true
   countrySearch.value = ''
   nextTick(() => countrySearchInput.value?.focus())
 }
 
 function closeCountryPicker() {
-  countryOpen.value = false
+  showCountries.value = false
   countrySearch.value = ''
 }
 
-function selectCountry(country) {
-  residenceCountry.value = country.code
-  updateCountry()
-  closeCountryPicker()
-}
-
 function handleCountryOutsideClick(event) {
-  if (countryOpen.value && !countryPicker.value?.contains(event.target)) closeCountryPicker()
+  if (showCountries.value && !countryPicker.value?.contains(event.target)) closeCountryPicker()
 }
 
 function handleCountryKeydown(event) {
   if (event.key === 'Escape') closeCountryPicker()
-}
-
-onMounted(() => document.addEventListener('pointerdown', handleCountryOutsideClick))
-onBeforeUnmount(() => document.removeEventListener('pointerdown', handleCountryOutsideClick))
-
-function updateCountry() {
-  phone.value = formattedPhone.value
 }
 
 function onPhoneInput(event) {
@@ -83,21 +83,23 @@ function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(value || '').trim())
 }
 
+onMounted(() => document.addEventListener('pointerdown', handleCountryOutsideClick))
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', handleCountryOutsideClick)
+  clearTimeout(contactHideTimer)
+})
+
 async function submit() {
   error.value = ''
 
-  // Validate in the browser first so visitors get instant feedback instead of
-  // a failed request.
   if (!name.value.trim() || !email.value.trim() || !message.value.trim()) {
     error.value = 'Please fill in your name, email and message.'
     return
   }
-
   if (!isValidEmail(email.value)) {
     error.value = 'Please enter a valid email address.'
     return
   }
-
   if (!phone.value.trim() || !validPhone.value) {
     error.value = phone.value.trim()
       ? 'Please enter a valid phone number for your selected country.'
@@ -106,8 +108,6 @@ async function submit() {
   }
 
   sending.value = true
-
-  // Abort rather than hanging forever on a slow or unreachable network.
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 20000)
 
@@ -118,29 +118,18 @@ async function submit() {
       body: JSON.stringify({
         name: name.value.trim(),
         email: email.value.trim(),
-        country: `${selectedCountry.value?.flag || ''} ${selectedCountry.value?.name || residenceCountry.value}`,
-        countryCode: residenceCountry.value,
         phone: parsePhoneNumberFromString(phone.value, residenceCountry.value)?.formatInternational() || phone.value.trim(),
-        autoHideMs: autoHideMs.value,
+        country: `${selectedCountry.value.flag} ${selectedCountry.value.name}`,
+        countryCode: residenceCountry.value,
         message: message.value.trim(),
+        autoHideMs: autoHideMs.value,
       }),
       signal: controller.signal,
     })
 
-    let payload = null
+    const payload = await response.json().catch(() => null)
+    if (!response.ok) throw new Error(payload?.message || 'The message could not be sent.')
 
-    try {
-      payload = await response.json()
-    } catch {
-      payload = null
-    }
-
-    if (!response.ok) {
-      // Show the server's own explanation when it gives one.
-      throw new Error(payload?.message || 'The message could not be sent.')
-    }
-
-    confirmation.value = payload?.message || 'Thank you for your message. We will contact you soon.'
     contactShareToken.value = payload?.shareToken || ''
     submissionId.value = payload?.submissionId || ''
     phoneExpiresAt.value = payload?.phoneExpiresAt || new Date(Date.now() + autoHideMs.value).toISOString()
@@ -149,15 +138,11 @@ async function submit() {
     hidePending.value = false
     sent.value = true
     clearTimeout(contactHideTimer)
-    contactHideTimer = setTimeout(() => hideContact(), Math.max(0, Date.parse(phoneExpiresAt.value) - Date.now()))
+    contactHideTimer = setTimeout(hideContact, Math.max(0, Date.parse(phoneExpiresAt.value) - Date.now()))
   } catch (requestError) {
-    if (requestError.name === 'AbortError') {
-      error.value = 'The request timed out. Please check your internet connection and try again.'
-    } else {
-      error.value =
-        requestError.message ||
-        'We could not send your message. Please email us directly at jsagricultureimportexportco@gmail.com.'
-    }
+    error.value = requestError.name === 'AbortError'
+      ? 'The request timed out. Please check your connection and try again.'
+      : requestError.message || 'We could not send your message. Please try again.'
   } finally {
     clearTimeout(timeout)
     sending.value = false
@@ -192,12 +177,10 @@ function startNewMessage() {
   clearTimeout(contactHideTimer)
   sent.value = false
   error.value = ''
-  confirmation.value = ''
   name.value = ''
   email.value = ''
   phone.value = ''
   residenceCountry.value = 'RW'
-  countrySearch.value = ''
   autoHideMs.value = 24 * 60 * 60 * 1000
   contactHidden.value = false
   hidePending.value = false
@@ -205,6 +188,8 @@ function startNewMessage() {
   submissionId.value = ''
   phoneExpiresAt.value = ''
   sharedPhone.value = ''
+  countrySearch.value = ''
+  showCountries.value = false
   message.value = ''
 }
 </script>
@@ -228,30 +213,21 @@ function startNewMessage() {
           </li>
           <li>
             <span class="label">WhatsApp</span>
-            <a href="https://wa.me/250795398553" target="_blank" rel="noreferrer">Chat with our team</a>
+            <a href="https://wa.me/250791945206" target="_blank" rel="noreferrer">Chat with our team</a>
           </li>
           <li>
             <span class="label">Email</span>
-            <a href="mailto:jsagricultureimportexportco@gmail.com">jsagricultureimportexportco@gmail.com</a>
+            <a href="mailto:jsagricultureltd.co@gmail.com">jsagricultureltd.co@gmail.com</a>
           </li>
           <li>
             <span class="label">Location</span>
-            <a href="https://maps.app.goo.gl/CGA9MP4jTpU4HhGEA" target="_blank" rel="noreferrer">Kayonza / Nyamirama, Rwanda</a>
+            <a href="https://www.google.com/maps/search/?api=1&query=Kayonza%2C%20Rwanda" target="_blank" rel="noreferrer">Kayonza / Nyamirama, Rwanda</a>
           </li>
           <li>
             <span class="label">Website</span>
-            <a href="https://www.jsagricultureltd.com" target="_blank" rel="noreferrer">www.jsagricultureltd.com</a>
+            <a href="https://www.jsagriculturaltd.com" target="_blank" rel="noreferrer">www.jsagriculturaltd.com</a>
           </li>
         </ul>
-
-        <div class="location-map">
-          <iframe
-            src="https://www.google.com/maps?q=-1.9670162,30.546278&z=17&output=embed"
-            title="J.S Agriculture location map"
-            loading="lazy"
-            referrerpolicy="no-referrer-when-downgrade"
-          ></iframe>
-        </div>
       </div>
 
       <form class="contact-form" @submit.prevent="submit" v-if="!sent">
@@ -263,59 +239,68 @@ function startNewMessage() {
           Email
           <input v-model="email" type="email" name="email" required placeholder="you@example.com" autocomplete="email" />
         </label>
-        <div class="country-field">
-          <span class="field-label" id="country-residence-label">Country of residence</span>
-          <div class="country-picker" ref="countryPicker">
-            <button
-              class="country-trigger"
-              type="button"
-              aria-labelledby="country-residence-label"
-              aria-haspopup="listbox"
-              :aria-expanded="countryOpen"
-              @click="countryOpen ? closeCountryPicker() : openCountryPicker()"
-              @keydown="handleCountryKeydown"
-            >
-              <span>{{ selectedCountry?.flag }} {{ selectedCountry?.name }}</span>
-              <strong>{{ selectedCountry?.callingCode }}</strong>
-              <span class="country-chevron" aria-hidden="true">{{ countryOpen ? '⌃' : '⌄' }}</span>
-            </button>
-            <div v-if="countryOpen" class="country-dropdown">
-              <input
-                ref="countrySearchInput"
-                v-model="countrySearch"
-                type="search"
-                placeholder="Search countries"
-                autocomplete="off"
-                aria-label="Search countries"
+        <label class="phone-field">
+          Phone number
+          <div class="phone-control">
+            <div class="country-picker" ref="countryPicker">
+              <button
+                class="country-trigger"
+                type="button"
+                :aria-expanded="showCountries"
+                aria-haspopup="listbox"
+                :aria-label="`Country of residence: ${selectedCountry.name}, ${selectedCountry.callingCode}`"
+                @click="showCountries ? closeCountryPicker() : openCountryPicker()"
                 @keydown="handleCountryKeydown"
-              />
-              <div class="country-options" role="listbox" aria-label="Countries">
-                <button
-                  v-for="country in filteredCountries"
-                  :key="country.code"
-                  class="country-option"
-                  :class="{ 'is-selected': country.code === residenceCountry }"
-                  type="button"
-                  role="option"
-                  :aria-selected="country.code === residenceCountry"
-                  @click="selectCountry(country)"
-                >
-                  <span>{{ country.flag }} {{ country.name }}</span>
-                  <strong>{{ country.callingCode }}</strong>
-                </button>
-                <p v-if="!filteredCountries.length" class="country-empty">No countries found.</p>
+              >
+                <span class="flag">{{ countryFlag(selectedCountry.code) }}</span>
+                <span class="country-name-selected">{{ selectedCountry.name }}</span>
+                <span class="country-code">{{ selectedCountry.callingCode }}</span>
+                <span class="chevron" aria-hidden="true">⌄</span>
+              </button>
+
+              <div v-if="showCountries" class="country-menu">
+                <input
+                  ref="countrySearchInput"
+                  v-model="countrySearch"
+                  class="country-search"
+                  type="search"
+                  placeholder="Search country..."
+                  autocomplete="off"
+                  aria-label="Search countries"
+                  @keydown="handleCountryKeydown"
+                />
+                <div class="country-list" role="listbox" aria-label="Countries">
+                  <button
+                    v-for="country in filteredCountries"
+                    :key="country.code + country.name"
+                    class="country-option"
+                    type="button"
+                    role="option"
+                    :aria-selected="country.code === residenceCountry"
+                    @click="selectCountry(country)"
+                  >
+                    <span class="flag">{{ country.flag }}</span>
+                    <span class="country-name">{{ country.name }}</span>
+                    <span class="country-option-code">{{ country.callingCode }}</span>
+                  </button>
+                  <p v-if="!filteredCountries.length" class="no-country">No country found.</p>
+                </div>
               </div>
             </div>
+            <input
+              :value="formattedPhone"
+              @input="onPhoneInput"
+              type="tel"
+              name="phone"
+              :placeholder="`Number in ${selectedCountry.name}`"
+              autocomplete="tel-national"
+              inputmode="tel"
+              required
+              :aria-invalid="phone && !validPhone"
+            />
           </div>
-        </div>
-        <label>
-          Phone number
-          <span class="phone-input">
-            <span class="calling-code" aria-label="International calling code">{{ selectedCountry?.callingCode }}</span>
-            <input :value="formattedPhone" @input="onPhoneInput" type="tel" name="phone" :placeholder="selectedCountry ? `Number in ${selectedCountry.name}` : 'Your phone number'" autocomplete="tel-national" inputmode="tel" required :aria-invalid="phone && !validPhone" />
-          </span>
-          <span class="phone-hint" :class="{ 'phone-invalid': phone && !validPhone }" aria-live="polite">
-            {{ phone && !validPhone ? 'Enter a valid number for this country.' : `Your number will be shared as ${selectedCountry?.callingCode || ''} plus your local number.` }}
+          <span class="country-hint" :class="{ 'phone-invalid': phone && !validPhone }" aria-live="polite">
+            {{ phone && !validPhone ? `Enter a valid ${selectedCountry.name} phone number.` : `Country of residence: ${selectedCountry.name} (${selectedCountry.callingCode})` }}
           </span>
         </label>
         <label>
@@ -326,7 +311,7 @@ function startNewMessage() {
             <option :value="7 * 24 * 60 * 60 * 1000">7 days</option>
             <option :value="30 * 24 * 60 * 60 * 1000">30 days</option>
           </select>
-          <span class="phone-hint">Your number is removed from submission history when it expires. You can hide it sooner.</span>
+          <span class="country-hint">Your contact is removed from the saved enquiry when it expires. You can hide it sooner.</span>
         </label>
         <label>
           Message
@@ -342,13 +327,13 @@ function startNewMessage() {
       <div class="contact-confirm" v-else>
         <span class="reply-label">Message sent</span>
         <h3>Thanks for reaching out, {{ name }}.</h3>
-        <p>{{ confirmation || 'Your enquiry has been received. Our team will get back to you by phone or email as soon as possible.' }}</p>
+        <p>{{ confirmation || 'Your enquiry has been received. Our team will get back to you soon.' }}</p>
         <div class="shared-contact" aria-live="polite">
           <strong>Contact shared</strong>
-          <span>{{ selectedCountry?.flag }} {{ selectedCountry?.name }} · {{ selectedCountry?.callingCode }}</span>
+          <span>{{ selectedCountry.flag }} {{ selectedCountry.name }} · {{ selectedCountry.callingCode }}</span>
           <span class="shared-phone">{{ contactHidden ? 'Contact hidden' : sharedPhone }}</span>
-          <span class="phone-hint" v-if="!contactHidden && phoneExpiresAt">Auto-hides {{ new Date(phoneExpiresAt).toLocaleString() }}</span>
-          <span class="phone-hint phone-invalid" v-if="hidePending">Hidden on this device; server removal is pending. Reconnect to retry.</span>
+          <span class="country-hint" v-if="!contactHidden && phoneExpiresAt">Auto-hides {{ new Date(phoneExpiresAt).toLocaleString() }}</span>
+          <span class="country-hint phone-invalid" v-if="hidePending">Hidden here; server removal is pending. Reconnect to retry.</span>
         </div>
         <button v-if="!contactHidden" class="btn btn-secondary" type="button" @click="hideContact">Hide contact now</button>
         <button v-if="hidePending" class="btn btn-secondary" type="button" @click="hideContact">Retry hiding contact</button>
@@ -423,22 +408,6 @@ h2 {
   color: var(--chili);
 }
 
-.location-map {
-  margin-top: 30px;
-  aspect-ratio: 16 / 9;
-  min-height: 220px;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--paper);
-}
-
-.location-map iframe {
-  width: 100%;
-  height: 100%;
-  border: 0;
-}
-
 .label {
   font-size: 0.78rem;
   font-weight: 700;
@@ -488,7 +457,6 @@ h2 {
 }
 
 .contact-form input,
-.contact-form select,
 .contact-form textarea {
   font-family: var(--font-body);
   font-size: 1rem;
@@ -500,162 +468,186 @@ h2 {
   resize: vertical;
 }
 
-.phone-input {
-  display: grid;
-  grid-template-columns: minmax(92px, 0.3fr) minmax(0, 1fr);
-  gap: 8px;
+.contact-form input:focus,
+.contact-form textarea:focus {
+  outline: 2px solid var(--leaf);
+  outline-offset: 1px;
 }
 
-.calling-code {
-  display: flex;
+.phone-control {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: stretch;
+}
+
+.country-picker {
+  position: relative;
+}
+
+.country-trigger {
+  height: 46px;
+  min-width: 170px;
+  max-width: 230px;
+  padding: 0 10px;
+  display: inline-flex;
   align-items: center;
-  padding: 12px 14px;
+  justify-content: center;
+  gap: 6px;
   border: 1px solid var(--line);
   border-radius: 3px;
-  background: #f8f7f2;
+  background: #fff;
   color: var(--forest-deep);
-  font-weight: 700;
+  font: 600 0.92rem var(--font-body);
+  cursor: pointer;
+}
+
+.country-trigger:hover {
+  border-color: var(--leaf);
+}
+
+.flag {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.country-code {
   white-space: nowrap;
 }
 
-.phone-hint {
-  padding: 0;
+.country-name-selected {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  font-size: 1rem;
+  line-height: 1;
+  transform: translateY(-2px);
+}
+
+.country-menu {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 6px);
+  left: 0;
+  width: min(300px, 78vw);
+  padding: 8px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+}
+
+.country-search {
+  width: 100%;
+  height: 38px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
+  font: 0.9rem var(--font-body);
+}
+
+.country-search:focus {
+  outline: 2px solid var(--leaf);
+  outline-offset: 0;
+}
+
+.country-list {
+  max-height: 220px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.country-option {
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 8px;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  gap: 7px;
+  align-items: center;
   border: 0;
+  border-radius: 4px;
   background: transparent;
-  font-size: 0.8rem;
-  font-weight: 500;
+  color: var(--ink);
+  text-align: left;
+  font: 0.88rem var(--font-body);
+  cursor: pointer;
+}
+
+.country-option:hover {
+  background: var(--paper-dim);
+}
+
+.country-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.country-option-code {
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.country-hint {
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  font-weight: 400;
 }
 
 .phone-invalid {
   color: var(--chili-deep);
 }
 
-.contact-form select {
-  font: inherit;
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: 3px;
-  background: #fff;
-  color: var(--ink);
-  width: 100%;
-}
-
-.country-field {
+.shared-contact {
   display: grid;
-  gap: 6px;
-  min-width: 0;
-}
-
-.field-label {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--ink-soft);
-}
-
-.country-picker {
-  position: relative;
-  min-width: 0;
-}
-
-.country-trigger {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  min-height: 48px;
-  padding: 11px 14px;
+  gap: 8px;
+  margin: 22px 0 4px;
+  padding: 18px;
   border: 1px solid var(--line);
-  border-radius: 3px;
-  background: #fff;
-  color: var(--ink);
-  text-align: left;
-  font: inherit;
-  cursor: pointer;
-}
-
-.country-trigger > span:first-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.country-trigger strong,
-.country-option strong {
-  color: var(--forest-deep);
-  white-space: nowrap;
-}
-
-.country-chevron {
-  color: var(--ink-soft);
-}
-
-.country-trigger:focus-visible,
-.country-option:focus-visible {
-  outline: 2px solid var(--leaf);
-  outline-offset: 2px;
-}
-
-.country-dropdown {
-  position: absolute;
-  z-index: 20;
-  top: calc(100% + 5px);
-  left: 0;
-  right: 0;
-  display: grid;
-  gap: 6px;
-  max-height: min(270px, 42vh);
-  padding: 8px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: var(--paper);
-  box-shadow: 0 10px 28px rgb(24 40 30 / 18%);
-}
-
-.country-dropdown > input {
-  width: 100%;
-  padding: 9px 11px;
-}
-
-.country-options {
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
-.country-option {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-  padding: 9px 10px;
-  border: 0;
-  border-radius: 3px;
-  background: transparent;
-  color: var(--ink);
-  font: inherit;
-  font-weight: 400;
-  text-align: left;
-  cursor: pointer;
-}
-
-.country-option:hover,
-.country-option.is-selected {
+  border-radius: 6px;
   background: var(--paper-dim);
+  overflow-wrap: anywhere;
 }
 
-.country-empty {
+.shared-contact strong,
+.shared-phone {
+  color: var(--forest-deep);
+}
+
+.shared-phone {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+}
+
+.no-country {
+  padding: 12px 8px;
   margin: 0;
-  padding: 10px;
   color: var(--ink-soft);
-  font-size: 0.85rem;
+  font-size: 0.82rem;
 }
 
-.contact-form input:focus,
-.contact-form textarea:focus {
-  outline: 2px solid var(--leaf);
-  outline-offset: 1px;
+@media (max-width: 560px) {
+  .phone-control {
+    grid-template-columns: 1fr;
+  }
+
+  .country-trigger {
+    width: 100%;
+    max-width: none;
+    justify-content: flex-start;
+  }
+
+  .country-menu {
+    width: 100%;
+  }
 }
 
 .contact-form button {
@@ -686,27 +678,6 @@ h2 {
 
 .contact-confirm p {
   color: var(--ink-soft);
-}
-
-.shared-contact {
-  display: grid;
-  gap: 8px;
-  margin: 22px 0 4px;
-  padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--paper-dim);
-  overflow-wrap: anywhere;
-}
-
-.shared-contact strong {
-  color: var(--forest-deep);
-}
-
-.shared-phone {
-  font-family: var(--font-display);
-  font-size: 1.2rem;
-  color: var(--forest-deep);
 }
 
 .reply-label {
