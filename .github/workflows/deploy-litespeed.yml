@@ -1,13 +1,16 @@
-name: Deploy to LiteSpeed VPS
+name: Deploy to LiteSpeed (DirectAdmin + Passenger)
 
-# Deploys on every push to this branch while the pipeline is being set up.
-# Once verified end-to-end, change this to `main` so production pushes deploy
-# automatically.
+# Runs on every push to this branch while the pipeline is being verified.
+# Once it works end to end, change the branch below to `main`.
 on:
   push:
     branches:
       - ci-cd-litespeed-deploy
   workflow_dispatch: {}
+
+env:
+  APP_DIR: /home/jsagricultureltd/app
+  NODE_ENV_ACTIVATE: /home/jsagricultureltd/nodevenv/app/20/bin/activate
 
 jobs:
   build-and-deploy:
@@ -28,64 +31,50 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      # Copies the app onto the VPS with rsync over SSH. Data that lives only
-      # on the server (uploaded gallery images, saved submissions, the admin
-      # password file, and .env) is excluded so a deploy never wipes it.
-      - name: Sync files to LiteSpeed VPS
-        uses: burnett01/rsync-deployments@7.0.1
-        with:
-          switches: -avzr --delete
-          exclude: |
-            .git/
-            .github/
-            node_modules/
-            .env
-            .env.*
-            server/uploads/
-            server/gallery-items.json
-            server/submissions.json
-            server/admin.json
-          path: ./
-          remote_path: ${{ secrets.LITESPEED_DEPLOY_PATH }}
-          remote_host: ${{ secrets.LITESPEED_HOST }}
-          remote_port: ${{ secrets.LITESPEED_PORT }}
-          remote_user: ${{ secrets.LITESPEED_USERNAME }}
-          remote_key: ${{ secrets.LITESPEED_SSH_KEY }}
+      # One archive instead of hundreds of small SFTP transfers: the server
+      # resets the connection on long multi-file uploads. .env and server-side
+      # data (uploads, gallery-items.json, submissions.json, admin.json) are not
+      # in the bundle, so a deploy never touches them.
+      - name: Create deploy bundle
+        run: tar -czf deploy.tar.gz dist server/index.js package.json package-lock.json
 
-      # Installs production dependencies on the server itself (never ships
-      # node_modules over the wire) and reloads the PM2-managed process.
-      # First deploy on a fresh server needs `pm2 start server/index.js --name
-      # js-agriculture-website` run once by hand so `pm2 restart` has a
-      # process to find; after that this step is enough on its own.
-      - name: Install server dependencies and restart app
+      - name: Upload bundle
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.LITESPEED_HOST }}
+          port: ${{ secrets.LITESPEED_PORT }}
+          username: ${{ secrets.LITESPEED_USERNAME }}
+          password: ${{ secrets.LITESPEED_PASSWORD }}
+          source: deploy.tar.gz
+          target: /home/jsagricultureltd/tmp
+
+      # Passenger restarts the app when tmp/restart.txt is touched.
+      - name: Extract, install dependencies, restart
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.LITESPEED_HOST }}
           port: ${{ secrets.LITESPEED_PORT }}
           username: ${{ secrets.LITESPEED_USERNAME }}
-          key: ${{ secrets.LITESPEED_SSH_KEY }}
+          password: ${{ secrets.LITESPEED_PASSWORD }}
           script: |
-            cd ${{ secrets.LITESPEED_DEPLOY_PATH }}
+            set -e
+            cd ${{ env.APP_DIR }}
+            rm -rf dist
+            tar -xzf /home/jsagricultureltd/tmp/deploy.tar.gz
+            rm -f /home/jsagricultureltd/tmp/deploy.tar.gz
+            source ${{ env.NODE_ENV_ACTIVATE }}
             npm ci --omit=dev
-            pm2 restart js-agriculture-website
-            pm2 save
+            mkdir -p tmp
+            touch tmp/restart.txt
 
 # --------------------------------------------------------------------------
-# Required GitHub repo secrets (Settings -> Secrets and variables -> Actions):
-#   LITESPEED_HOST         VPS IP address or hostname
-#   LITESPEED_PORT         SSH port (usually 22)
-#   LITESPEED_USERNAME     SSH user (e.g. root, or a deploy user)
-#   LITESPEED_SSH_KEY      Private key with access to that user (PEM format)
-#   LITESPEED_DEPLOY_PATH  Absolute path to the app on the VPS, e.g.
-#                          /home/deploy/js-agriculture-website
+# Repo secrets to add (Settings -> Secrets and variables -> Actions):
+#   LITESPEED_HOST      198.251.89.114
+#   LITESPEED_PORT      25552
+#   LITESPEED_USERNAME  jsagricultureltd
+#   LITESPEED_PASSWORD  the SSH password for that account
 #
-# One-time manual setup on the VPS before the first CI run:
-#   1. Create LITESPEED_DEPLOY_PATH and put a .env file in it (SMTP, JWT
-#      secret, admin credentials) - never committed to git.
-#   2. Install Node.js and PM2 (`npm i -g pm2`) on the server.
-#   3. Run `npm ci --omit=dev` once, then
-#      `pm2 start server/index.js --name js-agriculture-website && pm2 save`
-#      so future deploys can just `pm2 restart`.
-#   4. Configure the LiteSpeed vhost to reverse-proxy the domain to
-#      127.0.0.1:PORT (PORT from .env, defaults to 4000).
+# Server prerequisites (already done): app created in DirectAdmin ->
+# Setup Node.js App with root `app`, startup file `server/index.js`, and a
+# production .env inside /home/jsagricultureltd/app.
 # --------------------------------------------------------------------------
