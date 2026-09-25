@@ -125,7 +125,7 @@ SMTP_PASS=your-16-character-app-password
 SMTP_FROM=jsagricultureimportexportco@gmail.com
 ```
 
-For Gmail, enable 2-Step Verification and create an App Password. Do not use your normal Gmail password. After changing `.env`, restart the backend with `npm run server`. Contact submissions are saved to `server/submissions.json` before email is attempted. Phone numbers are kept only for the visitor-selected period (1 hour, 24 hours, 7 days or 30 days), can be hidden sooner, and are then replaced with `Contact hidden`. Email notifications do not include phone numbers. Signed-in admins can read active contact details at `GET /api/contact/submissions`; expired numbers are purged on a short server interval and whenever submissions are read.
+Gmail SMTP is configured for `jsagricultureimportexportco@gmail.com`. Enable 2-Step Verification and create an App Password; do not use your normal Gmail password. Put the app password only in the ignored local `.env` file under `SMTP_PASS`, then restart the backend with `npm run server`. The app password is intentionally excluded from the repository. Contact submissions are saved to `server/submissions.json` before email is attempted. Phone numbers are kept only for the visitor-selected period (1 hour, 24 hours, 7 days or 30 days), can be hidden sooner, and are then replaced with `Contact hidden`. Email notifications do not include phone numbers. Signed-in admins can read active contact details at `GET /api/contact/submissions`; expired numbers are purged on a short server interval and whenever submissions are read.
 
 ## Notes
 
