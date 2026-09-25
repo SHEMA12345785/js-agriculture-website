@@ -217,7 +217,7 @@ function startNewMessage() {
           </li>
           <li>
             <span class="label">Email</span>
-            <a href="mailto:jsagricultureltd.co@gmail.com">jsagricultureltd.co@gmail.com</a>
+            <a href="mailto:jsagricultureimportexportco@gmail.com">jsagricultureimportexportco@gmail.com</a>
           </li>
           <li>
             <span class="label">Location</span>
@@ -225,7 +225,7 @@ function startNewMessage() {
           </li>
           <li>
             <span class="label">Website</span>
-            <a href="https://www.jsagriculturaltd.com" target="_blank" rel="noreferrer">www.jsagriculturaltd.com</a>
+            <a href="https://www.jsagricultureltd.com" target="_blank" rel="noreferrer">www.jsagricultureltd.com</a>
           </li>
         </ul>
       </div>
