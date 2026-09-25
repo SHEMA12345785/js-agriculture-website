@@ -26,7 +26,7 @@ const year = new Date().getFullYear()
           <svg class="x-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.9 2h3.1l-6.77 7.74L23.2 22h-6.24l-4.89-6.39L6.48 22H3.36l7.24-8.28L2.8 2h6.4l4.42 5.84L18.9 2Zm-1.1 17.9h1.73L8.26 3.98H6.4L17.8 19.9Z" /></svg>
           <span>X</span>
         </a>
-        <a href="https://www.instagram.com/jsagricultureimportexportcoltd/" target="_blank" rel="noreferrer" aria-label="Follow J.S Agriculture on Instagram">
+        <a href="https://www.instagram.com/jsagricultureimportexportcoltd?stkn=Z3hyY3JzODF6a3kw" target="_blank" rel="noreferrer" aria-label="Follow J.S Agriculture on Instagram">
           <svg class="instagram-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle class="social-dot" cx="17.5" cy="6.5" r="1" /></svg>
           <span>Instagram</span>
         </a>
